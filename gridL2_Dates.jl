@@ -290,15 +290,8 @@ function main()
             println("ERROR: Input --startDate does not fall on an 8-day MODIS start date.")
             exit()
         else
-            # offset counter for mod-like data
-            modOffset = 0
             nyear     = Dates.Year(stopDate).value - Dates.Year(startDate).value + 1
-            if nyear > 1
-                # List of years to be used to determine offset for leap and non-leap years
-                yearList = Int64[];
-                for i in 1:nyear
-                    push!(yearList, Dates.Year(startDate).value + i - 1)
-                end                
+            if nyear > 1            
                 # Length of first year
                 cT = length(collect(Date(startDate):Dates.Day(8):Date(string(Dates.Year(startDate).value, "-12-31"))))
                 # Add Length of last year
@@ -311,6 +304,10 @@ function main()
             println("Temporal resolution is modis-like. Number of time steps is ", cT)
         end
     end
+
+    # offset counter for mod-like data
+    # always active to offset d (date variable) when writing to nc file
+    modOffset = 0
 
     # Just lazy (too cumbersome in code as often used variables here)
     latMax = ar["latMax"]
@@ -334,17 +331,17 @@ function main()
     defDim(dsOut,"lat",length(lat))
     defDim(dsOut,"lon",length(lon))
 
-    dsTime= defVar(dsOut,"time",Float32,("time",),attrib = ["units" => "days since 1970-01-01","long_name" => "Time (UTC), start of interval"])
-    dsLat = defVar(dsOut,"lat",Float32,("lat",), attrib = ["units" => "degrees_north","long_name" => "Latitude"])
-    dsLon = defVar(dsOut,"lon",Float32,("lon",), attrib = ["units" => "degrees_east","long_name" => "Longitude"])
-    dsLat[:]=lat
-    dsLon[:]=lon
+    dsTime   = defVar(dsOut,"time",Float32,("time",),attrib = ["units" => "days since 1970-01-01","long_name" => "Time (UTC), start of interval"])
+    dsLat    = defVar(dsOut,"lat",Float32,("lat",), attrib = ["units" => "degrees_north","long_name" => "Latitude"])
+    dsLon    = defVar(dsOut,"lon",Float32,("lon",), attrib = ["units" => "degrees_east","long_name" => "Longitude"])
+    dsLat[:] =lat
+    dsLon[:] =lon
 
     # Define a global attribute
     dsOut.attrib["title"] = "TROPOMI Gridded Data"
 
     # Define gridded variables:
-    n=zeros(Float32,(length(lat),length(lon)))
+    n   = zeros(Float32,(length(lat),length(lon)))
     SIF = zeros(Float32,(length(lat),length(lon)))
     # Parse JSON files as dictionary
     jsonDict = JSON.parsefile(ar["Dict"])
@@ -362,7 +359,7 @@ function main()
     # Get main folder for files:
     folder   = jsonDict["folder"]
 
-    NCDict= Dict{String, NCDatasets.CFVariable}()
+    NCDict = Dict{String, NCDatasets.CFVariable}()
     println("Input variables to output variables:")
     for (key, value) in dGrid
         println(key," : ", value)
@@ -373,8 +370,10 @@ function main()
         end
     end
     println("")
+    
     #dSIF = defVar(dsOut,"sif",Float32,("lat","lon"),deflatelevel=4, fillvalue=-9999)
     dN = defVar(dsOut,"n",Float32,("time","lat","lon"),deflatelevel=4, fillvalue=-9999, units="", long_name="Number of pixels in average")
+    
     # Define data array
     mat_data          = zeros(Float32,(length(lat),length(lon),length(dGrid)))
     mat_data_variance = zeros(Float32,(length(lat),length(lon),length(dGrid)))
@@ -401,14 +400,15 @@ function main()
         if ar["modLike"]
             # If the date range spans end of Dec and beg of Jan,
             # append only those files from the end of the year
-            if Dates.Year(d).value < Dates.Year(d+dDay-Dates.Day(1)).value
+            # NOTE: If modLike, then d becomes d minus modOffset
+            if Dates.Year(d - Dates.Day(modOffset)).value < Dates.Year(d - Dates.Day(modOffset) + dDay - Dates.Day(1)).value
                 println("End of year file.")
-                println("Sub date range is: ", Date(d - Dates.Day(modOffset)), " to ", Date(string(Dates.Year(d).value, "-12-31")))
+                println("Sub date range is: ", Date(d - Dates.Day(modOffset)), " to ", Date(string(Dates.Year(d - Dates.Day(modOffset)).value, "-12-31")))
                 for di in d - Dates.Day(modOffset):Dates.Day(1):DateTime(string(Dates.Year(d).value, "-12-31"))
                     filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init=fPattern)
                     files = [files;glob(filePattern, folder)]
                 end
-                if isleapyear(Dates.Year(d).value)
+                if isleapyear(Dates.Year(d - Dates.Day(modOffset)).value)
                     modOffset = modOffset + 4
                 else
                     modOffset = modOffset + 3
@@ -577,24 +577,24 @@ function main()
         println("")
         if maximum(mat_data_weights)>0
             dN[cT,:,:] = mat_data_weights
-            dsTime[cT]=d
+            dsTime[cT] = d - Dates.Day(modOffset)
             co = 1
             for (key, value) in dGrid
                 da = round.(mat_data[:,:,co],sigdigits=6)
                 da[mat_data_weights.<1e-10].=-9999
-                NCDict[key][cT,:,:]=da
+                NCDict[key][cT,:,:] = da
                 if ar["compSTD"]
-                    da = round.(sqrt.(mat_data_variance[:,:,co] ./ mat_data_weights)  ,sigdigits=6)
-                    da[mat_data_weights.<1e-10].=-9999
+                    da = round.(sqrt.(mat_data_variance[:,:,co] ./ mat_data_weights), sigdigits = 6)
+                    da[mat_data_weights.<1e-10] .= -9999
                     key2 = key*"_std"
-                    NCDict[key2][cT,:,:]=da
+                    NCDict[key2][cT,:,:] = da
                 end
                 #NCDict[key][cT,:,:]=da
                 co += 1
             end
         else
-            dN[cT,:,:]=0
-            dsTime[cT]=d
+            dN[cT,:,:] = 0
+            dsTime[cT] = d - Dates.Day(modOffset)
 
         end
         cT += 1
@@ -613,7 +613,7 @@ function main()
         run(`ncpdq -a time,lat,lon -O $nc_in $nc_in`)
     end
     println("Gridding Finished! Time taken was: ")
-    println(Dates.canonicalize(Dates.Millisecond(DateTime(now() - startTime))))
+    println(Dates.canonicalize(now() - startTime))
     println("")
 end
 
