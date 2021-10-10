@@ -21,55 +21,67 @@ function parse_commandline()
 
     @add_arg_table! s begin
         "--Dict"
-            help = "JSON dictionary file to use"
+            help     = "JSON dictionary file to use"
             arg_type = String
-            default = "/home/cfranken/code/gitHub/Gridding/gridding/tropomi_all.json"
+            default  = "/home/boomtree/Git/Julia/gridding/jsonFiles/tropomi_all.json"
         "--outFile", "-o"
-            help = "output filename (default OCO2_SIF_map.nc)"
+            help     = "output filename (default TROPOMI_SIF_map.nc)"
             arg_type = String
-            default = "OCO2_SIF_map.nc"
+            default  = "TROPOMI_SIF_map.nc"
         "--monthly"
-            help = "Use time-steps in terms of months (not days)"
+            help   = "Use time-steps in terms of months (not days)"
             action = :store_true
         "--compSTD"
-            help = "compute standard deviation within dataset"
+            help   = "compute standard deviation within dataset"
             action = :store_true
         "--latMin"
-            help = "Lower latitude bound"
+            help     = "Lower latitude bound"
             arg_type = Float32
-            default = -90.0f0
+            default  = -90.0f0
         "--latMax"
-            help = "Upper latitude bound"
+            help     = "Upper latitude bound"
             arg_type = Float32
-            default = 90.0f0
+            default  = 90.0f0
         "--lonMin"
-            help = "Lower longitude bound"
+            help     = "Lower longitude bound"
             arg_type = Float32
-            default = -180.0f0
+            default  = -180.0f0
         "--lonMax"
-            help = "Upper longitude bound"
+            help     = "Upper longitude bound"
             arg_type = Float32
-            default = 180.0f0
+            default  = 180.0f0
         "--dLat"
-            help = "latitude resolution"
+            help     = "latitude resolution"
             arg_type = Float32
-            default = 1.0f0
+            default  = 0.20f0
         "--dLon"
-            help = "longitude resolution"
+            help     = "longitude resolution"
             arg_type = Float32
-            default = 1.0f0
+            default  = 0.20f0
         "--startDate"
-                help = "Start Date (in YYYY-MM-DD)"
+                help     = "Start Date (in YYYY-MM-DD)"
                 arg_type = String
-                default = "2018-03-07"
+                default  = "2018-03-06"
         "--stopDate"
-                help = "Stop Date (in YYYY-MM-DD)"
+                help     = "Stop Date (in YYYY-MM-DD)"
                 arg_type = String
-                default = "2018-10-31"
+                default  = "2018-10-31"
         "--dDays"
-                help = "Time steps in days (or months if --monthly is set)"
+                help     = "Time steps in days (or months if --monthly is set)"
                 arg_type = Int64
-                default = 8
+                default  = 8
+        "--modLike"
+                help     = "Is temporal resolution 8-day MODIS-like? (default false)"
+                arg_type = Bool
+                default  = false
+        "--dateCons"
+                help     = "Conserves the --stopDate if --dDays interval forces a date range that extends beyond the --stopDate. (default false)"
+                arg_type = Bool
+                default  = false
+        "--permute"
+                help     = "Permute output dataset? This reorders the dimensions to the conventional order of time,lat,lon (z,y,x). Must have nco installed in your system. (default false)"
+                arg_type = Bool
+                default  = false
     end
     return parse_args(s)
 end
@@ -276,22 +288,23 @@ function main()
     # Define spatial grid:
     lat = collect(latMin+dLat/2.:dLat:latMax-dLat/2.0+eps)
     lon = collect(lonMin+dLon/2.:dLon:lonMax-dLon/2.0+eps)
-    println("Output file dimension (time/lon/lat):")
-    println(cT, "/", length(lon),"/", length(lat))
+    println("Output file dimension (time/lat/lon):")
+    println(cT, "/", length(lat),"/", length(lon))
+    
     # Create output file:
     dsOut = Dataset(ar["outFile"],"c")
-    defDim(dsOut,"lon",length(lon))
-    defDim(dsOut,"lat",length(lat))
     defDim(dsOut,"time", cT)
+    defDim(dsOut,"lat",length(lat))
+    defDim(dsOut,"lon",length(lon))
+
+    dsTime= defVar(dsOut,"time",Float32,("time",),attrib = ["units" => "days since 1970-01-01","long_name" => "Time (UTC), start of interval"])
     dsLat = defVar(dsOut,"lat",Float32,("lat",), attrib = ["units" => "degrees_north","long_name" => "Latitude"])
     dsLon = defVar(dsOut,"lon",Float32,("lon",), attrib = ["units" => "degrees_east","long_name" => "Longitude"])
-    dsTime= defVar(dsOut,"time",Float32,("time",),attrib = ["units" => "days since 1970-01-01","long_name" => "Time (UTC), start of interval"])
     dsLat[:]=lat
     dsLon[:]=lon
 
-
     # Define a global attribute
-    dsOut.attrib["title"] = "Awesome gridded file"
+    dsOut.attrib["title"] = "TROPOMI Gridded Data"
 
     # Define gridded variables:
     n=zeros(Float32,(length(lat),length(lon)))
@@ -308,26 +321,27 @@ function main()
 
     # Get file naming pattern (needs YYYY MM and DD in there)
     fPattern = jsonDict["filePattern"]
+    
     # Get main folder for files:
     folder   = jsonDict["folder"]
 
     NCDict= Dict{String, NCDatasets.CFVariable}()
-    println("Creating NC datasets in output:")
+    println("Input variables to output variables:")
     for (key, value) in dGrid
-        println(key," ", value)
-        NCDict[key] = defVar(dsOut,key,Float32,("time","lon","lat"),deflatelevel=4, fillvalue=-999)
+        println(key," : ", value)
+        NCDict[key] = defVar(dsOut,key,Float32,("time","lat","lon"),deflatelevel=4, fillvalue=-9999)
         if ar["compSTD"]
             key2 = key*"_std"
-            NCDict[key2] = defVar(dsOut,key2,Float32,("time","lon","lat"),deflatelevel=4, fillvalue=-999, comment="Standard Deviation from data")
+            NCDict[key2] = defVar(dsOut,key2,Float32,("time","lat","lon"),deflatelevel=4, fillvalue=-9999, comment="Standard Deviation from data")
         end
     end
     println(" ")
-    #dSIF = defVar(dsOut,"sif",Float32,("lon","lat"),deflatelevel=4, fillvalue=-999)
-    dN = defVar(dsOut,"n",Float32,("time","lon","lat"),deflatelevel=4, fillvalue=-999, units="", long_name="Number of pixels in average")
+    #dSIF = defVar(dsOut,"sif",Float32,("lat","lon"),deflatelevel=4, fillvalue=-9999)
+    dN = defVar(dsOut,"n",Float32,("time","lat","lon"),deflatelevel=4, fillvalue=-9999, units="", long_name="Number of pixels in average")
     # Define data array
-    mat_data          = zeros(Float32,(length(lon),length(lat),length(dGrid)))
-    mat_data_variance = zeros(Float32,(length(lon),length(lat),length(dGrid)))
-    mat_data_weights  = zeros(Float32,(length(lon),length(lat)))
+    mat_data          = zeros(Float32,(length(lat),length(lon),length(dGrid)))
+    mat_data_variance = zeros(Float32,(length(lat),length(lon),length(dGrid)))
+    mat_data_weights  = zeros(Float32,(length(lat),length(lon)))
 
     # Still hard-coded here, can be changed:
     nGrid = 10;
@@ -338,30 +352,44 @@ function main()
     # Just to make sure we fill in attributes first time we read actual data:
     fillAttrib = true;
 
+    # Not MOD-like
+
     # Loop through time:
     # Time counter
     cT = 1
+
+    
     for d in startDate:dDay:stopDate
         files = String[];
         for di in d:Dates.Day(1):d+dDay-Dates.Day(1)
-            #println("$(@sprintf("%04i-%02i-%02i", Dates.year(di),Dates.month(di),Dates.day(di)))")
-
-            filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init=fPattern)
-            #println(filePattern, " ", folder)
-            files = [files;glob(filePattern, folder)]
+            if ar["dateCons"] == true
+                # Do not go outside the date range
+                if di <= stopDate
+                    filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init=fPattern)
+                    files = [files;glob(filePattern, folder)]
+                elseif di > stopDate
+                    println("Input date range has been conserved. Not including files from outside the defined date range into gridding routine.")
+                end
+            elseif ar["dateCons"] == false
+                filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init=fPattern)
+                files = [files;glob(filePattern, folder)]
+            end
         end
         fileSize = Int[];
         for f in files
             fileSize = [fileSize;stat(f).size]
         end
-        #println(files)
+        if length(files) < Dates.value(dDay)
+            println("Warning: ", length(files), " files used for gidding for date range ", Date(d), " to ", Date(d + dDay - Dates.Day(1)))
+            println("First and last files used were: ", basename(files[1]), " to ", basename(last(files)))
+            println("")
+        end
 
         # Loop through all files
         for a in files[fileSize.>0]
 
-            
             fin = Dataset(a)
-            #println("Read, ", a)
+            println("Read, ", a)
             
             # Read lat/lon bounds (required, maybe can change this to simple gridding in the future with just center):
             lat_in_ = getNC_var(fin, d2["lat_bnd"],true)
@@ -403,7 +431,7 @@ function main()
                 bCounter+=1
             end
 
-            # If all were true, bool_add woule be bCounter!
+            # If all were true, bool_add would be bCounter!
             idx = findall(bool_add.==bCounter)
 
             # Read data only for non-empty indices
@@ -411,10 +439,11 @@ function main()
                 #print(size(lat_in_))
                 mat_in =  zeros(Float32,(length(lat_in_[:,1]),length(dGrid)))
                 dim = size(mat_in)
+                
                 # Read in all entries defined in JSON file:
                 co = 1
                 
-                # Do this onlye once:
+                # Do this only once:
                 if fillAttrib
                     for (key, value) in dGrid
 			# Need to change this soon to just go over keys(attrib), not this hard-coded thing. Just want to avoid another fill_value!
@@ -459,11 +488,11 @@ function main()
             co = 1
             for (key, value) in dGrid
                 da = round.(mat_data[:,:,co],sigdigits=6)
-                da[mat_data_weights.<1e-10].=-999
+                da[mat_data_weights.<1e-10].=-9999
                 NCDict[key][cT,:,:]=da
                 if ar["compSTD"]
                     da = round.(sqrt.(mat_data_variance[:,:,co] ./ mat_data_weights)  ,sigdigits=6)
-                    da[mat_data_weights.<1e-10].=-999
+                    da[mat_data_weights.<1e-10].=-9999
                     key2 = key*"_std"
                     NCDict[key2][cT,:,:]=da
                 end
@@ -481,6 +510,13 @@ function main()
         fill!(mat_data_variance,0.0)
     end
     close(dsOut)
+
+    # Permute?
+    if ar["permute"] == true
+        println("Permuting using nco in command line.")
+        nc_in = ar["outFile"]
+        run(`ncpdq -a time,lat,lon -O $nc_in $nc_in`)
+    end
 end
 
 main()
