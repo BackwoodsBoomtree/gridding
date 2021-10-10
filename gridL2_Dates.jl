@@ -163,8 +163,8 @@ function getNC_var(fin, path, DD::Bool)
             end
         end
     catch e
-        @show e
-        println("Error in getNC_var ", path)
+        # @show e
+        # println("Error in getNC_var ", path)
         return 0.0
     end
 
@@ -209,21 +209,21 @@ function favg_all!(arr,std_arr, weight_arr, compSTD, lat,lon,inp,s,s2,n, latMin,
     # Predefine some arrays to reduce allocations
     ix = zeros(Int32,n^2)
     iy = zeros(Int32,n^2)
-    lats_0 = zeros(n)
-    lons_0 = zeros(n)
-    lats_1 = zeros(n)
-    lons_1 = zeros(n)
-    iLon = floor.(Int32,lon)
-    iLat = floor.(Int32,lat)
-    minLat = minimum(Int32,floor.(lat), dims=2)
-    maxLat = maximum(Int32,floor.(lat), dims=2)
-    minLon = minimum(Int32,floor.(lon), dims=2)
-    maxLon = maximum(Int32,floor.(lon), dims=2)
+    lats_0  = zeros(n)
+    lons_0  = zeros(n)
+    lats_1  = zeros(n)
+    lons_1  = zeros(n)
+    iLon    = floor.(Int32,lon)
+    iLat    = floor.(Int32,lat)
+    minLat  = minimum(Int32,floor.(lat), dims=2)
+    maxLat  = maximum(Int32,floor.(lat), dims=2)
+    minLon  = minimum(Int32,floor.(lon), dims=2)
+    maxLon  = maximum(Int32,floor.(lon), dims=2)
     distLon = maxLon-minLon
     # How many individual grid cells might actually be there:
     dimLat = maxLat-minLat
     dimLon = maxLon-minLon
-    fac = Float32(1/n^2)
+    fac    = Float32(1/n^2)
 
     @inbounds for i in 1:s
         #println(i, " ", dimLat[i], " ", dimLon[i])
@@ -261,35 +261,72 @@ end
 
 function main()
 
+    startTime = DateTime(now())
+
     #addprocs()
     # Parse command line arguments
     ar = parse_commandline()
 
     # Find files to be processed
     startDate = DateTime(ar["startDate"])
-    stopDate = DateTime(ar["stopDate"])
+    stopDate  = DateTime(ar["stopDate"])
     if ar["monthly"]
-        dDay = Dates.Month(ar["dDays"])
+        dDay  = Dates.Month(ar["dDays"])
     else
-        dDay = Dates.Day(ar["dDays"])
+        dDay  = Dates.Day(ar["dDays"])
     end
-    println(startDate, " ", stopDate)
-    cT = length(startDate:dDay:stopDate)
+    cT        = length(startDate:dDay:stopDate)
+    println("")
+    println("Processing date range is:")
+    println(Date(startDate), " to ", Date(stopDate))
+    println("")
+
+    # If modLike but start date is bad then exit,
+    # else calculate cT (timesteps) length
+    if ar["modLike"]
+        modstartYear = Dates.Year(startDate).value
+        modDateList  = collect(Date(string(modstartYear, "-01-01")):Dates.Day(8):Date(string(modstartYear, "-12-31")))
+        if Date(startDate) ∉ modDateList
+            println("ERROR: Input --startDate does not fall on an 8-day MODIS start date.")
+            exit()
+        else
+            # offset counter for mod-like data
+            modOffset = 0
+            nyear     = Dates.Year(stopDate).value - Dates.Year(startDate).value + 1
+            if nyear > 1
+                # List of years to be used to determine offset for leap and non-leap years
+                yearList = Int64[];
+                for i in 1:nyear
+                    push!(yearList, Dates.Year(startDate).value + i - 1)
+                end                
+                # Length of first year
+                cT = length(collect(Date(startDate):Dates.Day(8):Date(string(Dates.Year(startDate).value, "-12-31"))))
+                # Add Length of last year
+                cT = cT + length(collect(Date(string(Dates.Year(stopDate).value, "-01-01")):Dates.Day(8):Date(stopDate)))
+                # Add length of remaining years (always 46)
+                if nyear > 2
+                    cT = cT + 46 * (nyear - 2)
+                end
+            end
+            println("Temporal resolution is modis-like. Number of time steps is ", cT)
+        end
+    end
 
     # Just lazy (too cumbersome in code as often used variables here)
     latMax = ar["latMax"]
     latMin = ar["latMin"]
     lonMax = ar["lonMax"]
     lonMin = ar["lonMin"]
-    dLat = ar["dLat"]
-    dLon = ar["dLon"]
-    eps = dLat/100
+    dLat   = ar["dLat"]
+    dLon   = ar["dLon"]
+    eps    = dLat/100
 
     # Define spatial grid:
     lat = collect(latMin+dLat/2.:dLat:latMax-dLat/2.0+eps)
     lon = collect(lonMin+dLon/2.:dLon:lonMax-dLon/2.0+eps)
     println("Output file dimension (time/lat/lon):")
     println(cT, "/", length(lat),"/", length(lon))
+    println("")
     
     # Create output file:
     dsOut = Dataset(ar["outFile"],"c")
@@ -335,7 +372,7 @@ function main()
             NCDict[key2] = defVar(dsOut,key2,Float32,("time","lat","lon"),deflatelevel=4, fillvalue=-9999, comment="Standard Deviation from data")
         end
     end
-    println(" ")
+    println("")
     #dSIF = defVar(dsOut,"sif",Float32,("lat","lon"),deflatelevel=4, fillvalue=-9999)
     dN = defVar(dsOut,"n",Float32,("time","lat","lon"),deflatelevel=4, fillvalue=-9999, units="", long_name="Number of pixels in average")
     # Define data array
@@ -356,47 +393,57 @@ function main()
     # Time counter
     cT = 1
 
-    # Get list of years
-    if ar["modLike"] == true
-        modOffset = 0
-        if Dates.Year(startDate).value < Dates.Year(stopDate).value
-            # Create list of years
-            nyear    = Dates.Year(stopDate).value - Dates.Year(startDate).value + 1
-            yearList = Int64[];
-            for i in 1:nyear
-                push!(yearList, Dates.Year(startDate).value + i - 1)
-            end
-        end
-    end
+    # Flag for if date range was conserved
+    flagDateCons = Bool[]
 
     for d in startDate:dDay:stopDate
         files = String[];
-        if ar["modLike"] == true
+        if ar["modLike"]
             # If the date range spans end of Dec and beg of Jan,
             # append only those files from the end of the year
             if Dates.Year(d).value < Dates.Year(d+dDay-Dates.Day(1)).value
-                for di in d:Dates.Day(1):DateTime(string(Dates.Year(d).value, "-12-31"))
+                println("End of year file.")
+                println("Sub date range is: ", Date(d - Dates.Day(modOffset)), " to ", Date(string(Dates.Year(d).value, "-12-31")))
+                for di in d - Dates.Day(modOffset):Dates.Day(1):DateTime(string(Dates.Year(d).value, "-12-31"))
                     filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init=fPattern)
                     files = [files;glob(filePattern, folder)]
-                    modOffset = modOffset + 1
                 end
+                if isleapyear(Dates.Year(d).value)
+                    modOffset = modOffset + 4
+                else
+                    modOffset = modOffset + 3
+                end
+                println("Number of days for MODIS offset is now: ", modOffset)
+                println(" ")
             else
-                for di in d:Dates.Day(1):d+dDay-Dates.Day(1)
+                println("Sub date range is: ", Date(d - Dates.Day(modOffset)), " to ", Date(d + dDay - Dates.Day(modOffset + 1)))
+                println(" ")
+                for di in d - Dates.Day(modOffset):Dates.Day(1):d + dDay - Dates.Day(modOffset + 1)
                     if ar["dateCons"] == true
                         # Do not go outside the date range
                         if di <= stopDate
                             filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init=fPattern)
                             files = [files;glob(filePattern, folder)]
                         elseif di > stopDate
-                            println("Input date range has been conserved. Not including files from outside the defined date range into gridding routine.")
+                            println("Warning: --dateCons true so excluding: ", Date(di), )
+                            flagDateCons = true
                         end
                     elseif ar["dateCons"] == false
+                        if di > stopDate
+                            println("Warning: --dateCons false so including: ", Date(di), )
+                        end
                         filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init=fPattern)
                         files = [files;glob(filePattern, folder)]
                     end
                 end
+                if flagDateCons == true
+                    println("First and last files being used are: ")
+                    println(basename(files[1]), " to ", basename(last(files)))
+                    println("")
+                end
             end
         elseif ar["modLike"] == false
+            println("Sub date range is: ", Date(d), " to ", Date(d+dDay-Dates.Day(1)))
             for di in d:Dates.Day(1):d+dDay-Dates.Day(1)
                 if ar["dateCons"] == true
                     # Do not go outside the date range
@@ -404,29 +451,33 @@ function main()
                         filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init=fPattern)
                         files = [files;glob(filePattern, folder)]
                     elseif di > stopDate
-                        println("Input date range has been conserved. Not including files from outside the defined date range into gridding routine.")
+                        println("Warning: --dateCons true so excluding: ", Date(di), )
+                        flagDateCons = true
                     end
                 elseif ar["dateCons"] == false
+                    if di > stopDate
+                        println("Warning: --dateCons true so including: ", Date(di), )
+                    end
                     filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init=fPattern)
                     files = [files;glob(filePattern, folder)]
                 end
             end
+            if flagDateCons == true
+                println("First and last files being used are: ")
+                println(basename(files[1]), " to ", basename(last(files)))
+            end
         end
+        
         fileSize = Int[];
         for f in files
             fileSize = [fileSize;stat(f).size]
-        end
-        if length(files) < Dates.value(dDay)
-            println("Warning: ", length(files), " files used for gidding for date range ", Date(d), " to ", Date(d + dDay - Dates.Day(1)))
-            println("First and last files used were: ", basename(files[1]), " to ", basename(last(files)))
-            println("")
         end
 
         # Loop through all files
         for a in files[fileSize.>0]
 
             fin = Dataset(a)
-            println("Read, ", a)
+            # println("Read, ", a)
             
             # Read lat/lon bounds (required, maybe can change this to simple gridding in the future with just center):
             lat_in_ = getNC_var(fin, d2["lat_bnd"],true)
@@ -489,8 +540,8 @@ function main()
                             try
                                 NCDict[key].attrib[at] = getNC_attrib(fin, value, at)
                             catch e
-                                @show e
-                                println(" Couldn't write attrib ", at)
+                                # @show e
+                                # println(" Couldn't write attrib ", at)
                             end
                         end
                     end
@@ -506,10 +557,14 @@ function main()
                 iLat_ = ((lat_in_[idx,:].-latMin)/(latMax-latMin)*length(lat)).+1
                 iLon_ = ((lon_in_[idx,:].-lonMin)/(lonMax-lonMin)*length(lon)).+1
 
-                @time  favg_all!(mat_data, mat_data_variance, mat_data_weights, ar["compSTD"], iLat_,iLon_,mat_in[idx,:],length(idx),dim[2],nGrid, latMin, latMax, lonMin,lonMax, length(lat), length(lon), points )
-                println("Read ", a, " ", length(idx))
+                # @time  favg_all!(mat_data, mat_data_variance, mat_data_weights, ar["compSTD"], iLat_,iLon_,mat_in[idx,:],length(idx),dim[2],nGrid, latMin, latMax, lonMin,lonMax, length(lat), length(lon), points )
+                favg_all!(mat_data, mat_data_variance, mat_data_weights, ar["compSTD"], iLat_,iLon_,mat_in[idx,:],length(idx),dim[2],nGrid, latMin, latMax, lonMin,lonMax, length(lat), length(lon), points )
+
+                # println("Read ", a, " ", length(idx))
+                println("Read ", basename(a))
             else
-                println("Read ", a, " ", length(idx))
+                # println("Read ", a, " ", length(idx))
+                println("Read ", basename(a))
             end
             close(fin)
     #       catch
@@ -518,7 +573,8 @@ function main()
         end
         # Filter all data, set averages, still need to change row/column order here in the future!
         dims = size(mat_data)
-        println("Averaging final product...")
+        println("Averaging time step...")
+        println("")
         if maximum(mat_data_weights)>0
             dN[cT,:,:] = mat_data_weights
             dsTime[cT]=d
@@ -550,10 +606,15 @@ function main()
 
     # Permute?
     if ar["permute"] == true
-        println("Permuting using nco in command line.")
+        println("")
+        println("--permute true. Permuting using nco in command line.")
+        println("")
         nc_in = ar["outFile"]
         run(`ncpdq -a time,lat,lon -O $nc_in $nc_in`)
     end
+    println("Gridding Finished! Time taken was: ")
+    println(Dates.canonicalize(Dates.Millisecond(DateTime(now() - startTime))))
+    println("")
 end
 
 main()
