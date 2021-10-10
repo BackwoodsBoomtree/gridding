@@ -352,27 +352,64 @@ function main()
     # Just to make sure we fill in attributes first time we read actual data:
     fillAttrib = true;
 
-    # Not MOD-like
-
     # Loop through time:
     # Time counter
     cT = 1
 
-    
+    # Get list of years
+    if ar["modLike"] == true
+        modOffset = 0
+        if Dates.Year(startDate).value < Dates.Year(stopDate).value
+            # Create list of years
+            nyear    = Dates.Year(stopDate).value - Dates.Year(startDate).value + 1
+            yearList = Int64[];
+            for i in 1:nyear
+                push!(yearList, Dates.Year(startDate).value + i - 1)
+            end
+        end
+    end
+
     for d in startDate:dDay:stopDate
         files = String[];
-        for di in d:Dates.Day(1):d+dDay-Dates.Day(1)
-            if ar["dateCons"] == true
-                # Do not go outside the date range
-                if di <= stopDate
+        if ar["modLike"] == true
+            # If the date range spans end of Dec and beg of Jan,
+            # append only those files from the end of the year
+            if Dates.Year(d).value < Dates.Year(d+dDay-Dates.Day(1)).value
+                for di in d:Dates.Day(1):DateTime(string(Dates.Year(d).value, "-12-31"))
                     filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init=fPattern)
                     files = [files;glob(filePattern, folder)]
-                elseif di > stopDate
-                    println("Input date range has been conserved. Not including files from outside the defined date range into gridding routine.")
+                    modOffset = modOffset + 1
                 end
-            elseif ar["dateCons"] == false
-                filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init=fPattern)
-                files = [files;glob(filePattern, folder)]
+            else
+                for di in d:Dates.Day(1):d+dDay-Dates.Day(1)
+                    if ar["dateCons"] == true
+                        # Do not go outside the date range
+                        if di <= stopDate
+                            filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init=fPattern)
+                            files = [files;glob(filePattern, folder)]
+                        elseif di > stopDate
+                            println("Input date range has been conserved. Not including files from outside the defined date range into gridding routine.")
+                        end
+                    elseif ar["dateCons"] == false
+                        filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init=fPattern)
+                        files = [files;glob(filePattern, folder)]
+                    end
+                end
+            end
+        elseif ar["modLike"] == false
+            for di in d:Dates.Day(1):d+dDay-Dates.Day(1)
+                if ar["dateCons"] == true
+                    # Do not go outside the date range
+                    if di <= stopDate
+                        filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init=fPattern)
+                        files = [files;glob(filePattern, folder)]
+                    elseif di > stopDate
+                        println("Input date range has been conserved. Not including files from outside the defined date range into gridding routine.")
+                    end
+                elseif ar["dateCons"] == false
+                    filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init=fPattern)
+                    files = [files;glob(filePattern, folder)]
+                end
             end
         end
         fileSize = Int[];
