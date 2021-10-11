@@ -72,13 +72,13 @@ function parse_commandline()
                 default  = 8
         "--modLike"
                 help     = "Is temporal resolution 8-day MODIS-like? (default false)"
-                action = :store_true
+                action   = :store_true
         "--dateCons"
                 help     = "Conserves the --stopDate if --byDays interval forces a date range that extends beyond the --stopDate. (default false)"
-                action = :store_true
+                action   = :store_true
         "--permute"
                 help     = "Permute output dataset? This reorders the dimensions to the conventional order of time,lat,lon (z,y,x). Must have nco installed in your system. (default false)"
-                action = :store_true
+                action   = :store_true
     end
     return parse_args(s)
 end
