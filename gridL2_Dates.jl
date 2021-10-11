@@ -404,17 +404,21 @@ function main()
             if Dates.Year(d - Dates.Day(modOffset)).value < Dates.Year(d - Dates.Day(modOffset) + dDay - Dates.Day(1)).value
                 println("End of year file.")
                 println("Sub date range is: ", Date(d - Dates.Day(modOffset)), " to ", Date(string(Dates.Year(d - Dates.Day(modOffset)).value, "-12-31")))
-                for di in d - Dates.Day(modOffset):Dates.Day(1):DateTime(string(Dates.Year(d).value, "-12-31"))
-                    filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init=fPattern)
+                for di in d - Dates.Day(modOffset):Dates.Day(1):DateTime(string(Dates.Year(d - Dates.Day(modOffset)).value, "-12-31"))
+                    filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init = fPattern)
                     files = [files;glob(filePattern, folder)]
                 end
                 if isleapyear(Dates.Year(d - Dates.Day(modOffset)).value)
-                    modOffset = modOffset + 4
+                    modOffset = modOffset + 2
+                    println("Leap year. Number of days for MODIS offset was increased by 2.")
+                    println("MODIS offset is now: ", modOffset)
+                    println(" ")
                 else
                     modOffset = modOffset + 3
+                    println("Not a leap year. Number of days for MODIS offset was increased by 3.")
+                    println("MODIS offset is now: ", modOffset)
+                    println(" ")
                 end
-                println("Number of days for MODIS offset is now: ", modOffset)
-                println(" ")
             else
                 println("Sub date range is: ", Date(d - Dates.Day(modOffset)), " to ", Date(d + dDay - Dates.Day(modOffset + 1)))
                 println(" ")
@@ -422,7 +426,7 @@ function main()
                     if ar["dateCons"] == true
                         # Do not go outside the date range
                         if di <= stopDate
-                            filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init=fPattern)
+                            filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init = fPattern)
                             files = [files;glob(filePattern, folder)]
                         elseif di > stopDate
                             println("Warning: --dateCons true so excluding: ", Date(di), )
@@ -575,18 +579,18 @@ function main()
         dims = size(mat_data)
         println("Averaging time step...")
         println("")
-        if maximum(mat_data_weights)>0
+        if maximum(mat_data_weights) > 0
             dN[cT,:,:] = mat_data_weights
             dsTime[cT] = d - Dates.Day(modOffset)
             co = 1
             for (key, value) in dGrid
                 da = round.(mat_data[:,:,co],sigdigits=6)
-                da[mat_data_weights.<1e-10].=-9999
+                da[mat_data_weights .< 1e-10] .= -9999
                 NCDict[key][cT,:,:] = da
                 if ar["compSTD"]
                     da = round.(sqrt.(mat_data_variance[:,:,co] ./ mat_data_weights), sigdigits = 6)
                     da[mat_data_weights.<1e-10] .= -9999
-                    key2 = key*"_std"
+                    key2 = key * "_std"
                     NCDict[key2][cT,:,:] = da
                 end
                 #NCDict[key][cT,:,:]=da
