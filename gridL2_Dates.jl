@@ -377,10 +377,10 @@ function main()
     
     # Create output file:
     dsOut = Dataset(ar["outFile"],"c")
+    
     defDim(dsOut,"time", cT)
     defDim(dsOut,"lat",length(lat))
     defDim(dsOut,"lon",length(lon))
-
     dsTime   = defVar(dsOut,"time",Float32,("time",),attrib = ["units" => "days since 1970-01-01","long_name" => "Time (UTC), start of interval"])
     dsLat    = defVar(dsOut,"lat",Float32,("lat",), attrib = ["units" => "degrees_north","long_name" => "Latitude"])
     dsLon    = defVar(dsOut,"lon",Float32,("lon",), attrib = ["units" => "degrees_east","long_name" => "Longitude"])
@@ -413,21 +413,21 @@ function main()
     println("Input variables to output variables:")
     for (key, value) in dGrid
         println(key," : ", value)
-        NCDict[key] = defVar(dsOut,key,Float32,("time","lat","lon"),deflatelevel=4, fillvalue=-9999)
+        NCDict[key] = defVar(dsOut, key, Float32,("time", "lon", "lat"), deflatelevel = 4, fillvalue = -9999)
         if ar["compSTD"]
             key2 = key*"_std"
-            NCDict[key2] = defVar(dsOut,key2,Float32,("time","lat","lon"),deflatelevel=4, fillvalue=-9999, comment="Standard Deviation from data")
+            NCDict[key2] = defVar(dsOut, key2, Float32, ("time", "lon", "lat"), deflatelevel = 4, fillvalue = -9999, comment = "Standard Deviation from data")
         end
     end
     println("")
     
     #dSIF = defVar(dsOut,"sif",Float32,("lat","lon"),deflatelevel=4, fillvalue=-9999)
-    dN = defVar(dsOut,"n",Float32,("time","lat","lon"),deflatelevel=4, fillvalue=-9999, units="", long_name="Number of pixels in average")
+    dN = defVar(dsOut, "n", Float32, ("time", "lon", "lat"), deflatelevel = 4, fillvalue = -9999, units = "", long_name = "Number of pixels in average")
     
     # Define data array
-    mat_data          = zeros(Float32,(length(lat),length(lon),length(dGrid)))
-    mat_data_variance = zeros(Float32,(length(lat),length(lon),length(dGrid)))
-    mat_data_weights  = zeros(Float32,(length(lat),length(lon)))
+    mat_data          = zeros(Float32,(length(lon),length(lat),length(dGrid)))
+    mat_data_variance = zeros(Float32,(length(lon),length(lat),length(dGrid)))
+    mat_data_weights  = zeros(Float32,(length(lon),length(lat)))
 
     # Still hard-coded here, can be changed:
     nGrid = 10;
