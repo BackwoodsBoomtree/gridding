@@ -25,40 +25,57 @@ modDateList = collect(Date(startDate):Dates.Day(8):Date(stopDate))
 
 
 startDate = "2019-12-19"
-stopDate  = "2021-01-11"
+stopDate  = "2020-01-11"
 
-
-function modDates(firstDate, lastDate)
-    first    = DateTime(firstDate);
-    last     = DateTime(lastDate);
-    nyear    = Dates.Year(last).value - Dates.Year(first).value + 1;
-    dateList = []
+function modDates(startDate, endDate)
+    startDate = DateTime(startDate)
+    endDate   = DateTime(endDate)
+    nyear     = Dates.Year(endDate).value - Dates.Year(startDate).value + 1
+    yearList  = [Dates.Year(startDate).value : 1 : Dates.Year(endDate).value;]
+    println(yearList)
     println("Number of years is ", nyear)
-    if nyear == 2          
-        firstList = collect(first:Dates.Day(8):DateTime(string(Dates.Year(first).value, "-12-31")));
-        lastList  = collect(DateTime(string(Dates.Year(last).value, "-01-01")):Dates.Day(8):last);
-        dateList = [firstList; lastList];
+    if nyear == 1
+        # Start dates for the year
+        firstList = collect(startDate:Dates.Day(8):endDate)
+        # Last date for each range
+        lastList  = firstList + Dates.Day(7)
+        dateList  = hcat(firstList, lastList)
+    elseif nyear == 2     
+        # Start dates from the first year
+        firstList = collect(startDate:Dates.Day(8):DateTime(string(Dates.Year(startDate).value, "-12-31")))
+        # Append start dates from the second year
+        firstList = [firstList;collect(DateTime(string(Dates.Year(endDate).value, "-01-01")):Dates.Day(8):endDate)]
+        lastList  = firstList + Dates.Day(7)
+        dateList  = hcat(firstList, lastList)
     elseif nyear > 2
-        yearList = [Dates.Year(first).value : 1 : Dates.Year(last).value;];
-        firstList = collect(first:Dates.Day(8):DateTime(string(Dates.Year(first).value, "-12-31")));
-        lastList  = collect(DateTime(string(Dates.Year(last).value, "-01-01")):Dates.Day(8):last);
-        dateList  = [dateList;firstList];
-        # Get list for years between the first and last
+        # Start dates from the first year
+        firstList = collect(startDate:Dates.Day(8):DateTime(string(Dates.Year(startDate).value, "-12-31")))
+        # Append start dates from middle years
         for year in yearList[1] + 1 : yearList[end] - 1
-            midList = collect(DateTime(string(Dates.Year(year).value, "-01-01")):Dates.Day(8):DateTime(string(Dates.Year(year).value, "-12-31")));
-            dateList = [dateList;midList];
+            firstList = [firstList;collect(DateTime(string(year, "-01-01")):Dates.Day(8):DateTime(string(year, "-12-31")))]
         end
-        dateList = [dateList;lastList];
+        # Append start dates from final year
+        firstList = [firstList;collect(DateTime(string(Dates.Year(endDate).value, "-01-01")):Dates.Day(8):endDate)]
+        lastList  = firstList + Dates.Day(7)
+        dateList  = hcat(firstList, lastList)
+    end
+    # Correct last dates to be end of year
+    for year in yearList
+        dateList = replace(dateList, DateTime(string(year, "-01-02")) => DateTime(string(year, "-12-31")))
+        dateList = replace(dateList, DateTime(string(year, "-01-03")) => DateTime(string(year, "-12-31")))
     end
     return(dateList)
-
-        # Add length of remaining years (always 46)
-        # if nyear > 2
-        #     cT = cT + 46 * (nyear - 2)
-        # end
 end
 
-myList = modDates(startDate, stopDate)
+myList = modDates("2019-12-19", "2021-01-11")
+
+
+first    = DateTime("2019-12-19");
+last     = DateTime("2021-01-31");
+
+firstList = collect(first:Dates.Day(8):last)
+endList   = firstList + Dates.Day(7)
+dateList = hcat(firstList, endList)
 
 # If modLike but start date is bad then exit,
 # else calculate cT (timesteps) length
