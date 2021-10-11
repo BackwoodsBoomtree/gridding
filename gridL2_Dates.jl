@@ -66,22 +66,19 @@ function parse_commandline()
                 help     = "Stop Date (in YYYY-MM-DD)"
                 arg_type = String
                 default  = "2018-10-31"
-        "--dDays"
+        "--byDays"
                 help     = "Time steps in days (or months if --monthly is set)"
                 arg_type = Int64
                 default  = 8
         "--modLike"
                 help     = "Is temporal resolution 8-day MODIS-like? (default false)"
-                arg_type = Bool
-                default  = false
+                action = :store_true
         "--dateCons"
-                help     = "Conserves the --stopDate if --dDays interval forces a date range that extends beyond the --stopDate. (default false)"
-                arg_type = Bool
-                default  = false
+                help     = "Conserves the --stopDate if --byDays interval forces a date range that extends beyond the --stopDate. (default false)"
+                action = :store_true
         "--permute"
                 help     = "Permute output dataset? This reorders the dimensions to the conventional order of time,lat,lon (z,y,x). Must have nco installed in your system. (default false)"
-                arg_type = Bool
-                default  = false
+                action = :store_true
     end
     return parse_args(s)
 end
@@ -188,6 +185,56 @@ function getNC_attrib(fin, path, attri)
     end
 end
 
+function datesBy(startDate, endDate, byDays)
+    startDate = DateTime(startDate)
+    endDate   = DateTime(endDate)
+    byDays    = Dates.Day(byDays)
+    # Start dates for the year
+    firstList = collect(startDate:byDays:endDate)
+    # Last date for each range
+    lastList  = firstList + byDays - Dates.Day(1)
+    dateList  = hcat(firstList, lastList)
+    return(dateList)
+end
+
+function modDates(startDate, endDate)
+    startDate = DateTime(startDate)
+    endDate   = DateTime(endDate)
+    nyear     = Dates.Year(endDate).value - Dates.Year(startDate).value + 1
+    yearList  = [Dates.Year(startDate).value : 1 : Dates.Year(endDate).value;]
+    if nyear == 1
+        # Start dates for the year
+        firstList = collect(startDate:Dates.Day(8):endDate)
+        # Last date for each range
+        lastList  = firstList + Dates.Day(7)
+        dateList  = hcat(firstList, lastList)
+    elseif nyear == 2     
+        # Start dates from the first year
+        firstList = collect(startDate:Dates.Day(8):DateTime(string(Dates.Year(startDate).value, "-12-31")))
+        # Append start dates from the second year
+        firstList = [firstList;collect(DateTime(string(Dates.Year(endDate).value, "-01-01")):Dates.Day(8):endDate)]
+        lastList  = firstList + Dates.Day(7)
+        dateList  = hcat(firstList, lastList)
+    elseif nyear > 2
+        # Start dates from the first year
+        firstList = collect(startDate:Dates.Day(8):DateTime(string(Dates.Year(startDate).value, "-12-31")))
+        # Append start dates from middle years
+        for year in yearList[1] + 1 : yearList[end] - 1
+            firstList = [firstList;collect(DateTime(string(year, "-01-01")):Dates.Day(8):DateTime(string(year, "-12-31")))]
+        end
+        # Append start dates from final year
+        firstList = [firstList;collect(DateTime(string(Dates.Year(endDate).value, "-01-01")):Dates.Day(8):endDate)]
+        lastList  = firstList + Dates.Day(7)
+        dateList  = hcat(firstList, lastList)
+    end
+    # Correct last dates to be end of year
+    for year in yearList
+        dateList = replace(dateList, DateTime(string(year, "-01-02")) => DateTime(string(year - 1, "-12-31")))
+        dateList = replace(dateList, DateTime(string(year, "-01-03")) => DateTime(string(year - 1, "-12-31")))
+    end
+    return(dateList)
+end
+
 # Test for how fast we can compute point in distributed mode (not yet used)
 #function compPoints!(lat,lon,n)
 #    dim = size(lat)
@@ -270,44 +317,47 @@ function main()
     # Find files to be processed
     startDate = DateTime(ar["startDate"])
     stopDate  = DateTime(ar["stopDate"])
+    
     if ar["monthly"]
-        dDay  = Dates.Month(ar["dDays"])
+        byDay  = Dates.Month(ar["byDays"])
     else
-        dDay  = Dates.Day(ar["dDays"])
+        byDay  = Dates.Day(ar["byDays"])
     end
-    cT        = length(startDate:dDay:stopDate)
+
     println("")
     println("Processing date range is:")
     println(Date(startDate), " to ", Date(stopDate))
     println("")
 
+    # Build 2d array of beginning and end dates for entire range
     # If modLike but start date is bad then exit,
-    # else calculate cT (timesteps) length
+    # else get date ranges and count cT (timesteps)
     if ar["modLike"]
+        # Exit if start date is bad
         modstartYear = Dates.Year(startDate).value
         modDateList  = collect(Date(string(modstartYear, "-01-01")):Dates.Day(8):Date(string(modstartYear, "-12-31")))
         if Date(startDate) ∉ modDateList
             println("ERROR: Input --startDate does not fall on an 8-day MODIS start date.")
             exit()
         else
-            nyear     = Dates.Year(stopDate).value - Dates.Year(startDate).value + 1
-            if nyear > 1            
-                # Length of first year
-                cT = length(collect(Date(startDate):Dates.Day(8):Date(string(Dates.Year(startDate).value, "-12-31"))))
-                # Add Length of last year
-                cT = cT + length(collect(Date(string(Dates.Year(stopDate).value, "-01-01")):Dates.Day(8):Date(stopDate)))
-                # Add length of remaining years (always 46)
-                if nyear > 2
-                    cT = cT + 46 * (nyear - 2)
-                end
-            end
-            println("Temporal resolution is modis-like. Number of time steps is ", cT)
+            dateChunks = modDates(ar["startDate"], ar["stopDate"])
+            cT = size(dateChunks, 1)
+            println("Temporal resolution is modis-like. Number of time steps is: ", cT)
         end
+    else
+        dateChunks = datesBy(startDate, stopDate, byDay)
+        cT         = size(dateChunks, 1)
+        println("Temporal resolution is not modis-like. Number of time steps is: ", cT)
     end
-
-    # offset counter for mod-like data
-    # always active to offset d (date variable) when writing to nc file
-    modOffset = 0
+    # Change last date according to dateCons flag
+    if ar["dateCons"]
+        dateChunks[end] = stopDate
+        println("Warning: --dateCons true. If date range is not divisible by --byDays, then excluding data beyond the --stopDate.")
+        println("")
+    else
+        println("Warning: --dateCons false. If date range is not divisible by --byDays, then including data beyond the --stopDate.")
+        println("")
+    end
 
     # Just lazy (too cumbersome in code as often used variables here)
     latMax = ar["latMax"]
@@ -334,8 +384,8 @@ function main()
     dsTime   = defVar(dsOut,"time",Float32,("time",),attrib = ["units" => "days since 1970-01-01","long_name" => "Time (UTC), start of interval"])
     dsLat    = defVar(dsOut,"lat",Float32,("lat",), attrib = ["units" => "degrees_north","long_name" => "Latitude"])
     dsLon    = defVar(dsOut,"lon",Float32,("lon",), attrib = ["units" => "degrees_east","long_name" => "Longitude"])
-    dsLat[:] =lat
-    dsLon[:] =lon
+    dsLat[:] = lat
+    dsLon[:] = lon
 
     # Define a global attribute
     dsOut.attrib["title"] = "TROPOMI Gridded Data"
@@ -392,84 +442,14 @@ function main()
     # Time counter
     cT = 1
 
-    # Flag for if date range was conserved
-    flagDateCons = Bool[]
-
-    for d in startDate:dDay:stopDate
+    for chunk in 1:size(dateChunks, 1)
         files = String[];
-        if ar["modLike"]
-            # If the date range spans end of Dec and beg of Jan,
-            # append only those files from the end of the year
-            # NOTE: If modLike, then d becomes d minus modOffset
-            if Dates.Year(d - Dates.Day(modOffset)).value < Dates.Year(d - Dates.Day(modOffset) + dDay - Dates.Day(1)).value
-                println("End of year file.")
-                println("Sub date range is: ", Date(d - Dates.Day(modOffset)), " to ", Date(string(Dates.Year(d - Dates.Day(modOffset)).value, "-12-31")))
-                for di in d - Dates.Day(modOffset):Dates.Day(1):DateTime(string(Dates.Year(d - Dates.Day(modOffset)).value, "-12-31"))
-                    filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init = fPattern)
-                    files = [files;glob(filePattern, folder)]
-                end
-                if isleapyear(Dates.Year(d - Dates.Day(modOffset)).value)
-                    modOffset = modOffset + 2
-                    println("Leap year. Number of days for MODIS offset was increased by 2.")
-                    println("MODIS offset is now: ", modOffset)
-                    println(" ")
-                else
-                    modOffset = modOffset + 3
-                    println("Not a leap year. Number of days for MODIS offset was increased by 3.")
-                    println("MODIS offset is now: ", modOffset)
-                    println(" ")
-                end
-            else
-                println("Sub date range is: ", Date(d - Dates.Day(modOffset)), " to ", Date(d + dDay - Dates.Day(modOffset + 1)))
-                println(" ")
-                for di in d - Dates.Day(modOffset):Dates.Day(1):d + dDay - Dates.Day(modOffset + 1)
-                    if ar["dateCons"] == true
-                        # Do not go outside the date range
-                        if di <= stopDate
-                            filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init = fPattern)
-                            files = [files;glob(filePattern, folder)]
-                        elseif di > stopDate
-                            println("Warning: --dateCons true so excluding: ", Date(di), )
-                            flagDateCons = true
-                        end
-                    elseif ar["dateCons"] == false
-                        if di > stopDate
-                            println("Warning: --dateCons false so including: ", Date(di), )
-                        end
-                        filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init=fPattern)
-                        files = [files;glob(filePattern, folder)]
-                    end
-                end
-                if flagDateCons == true
-                    println("First and last files being used are: ")
-                    println(basename(files[1]), " to ", basename(last(files)))
-                    println("")
-                end
-            end
-        elseif ar["modLike"] == false
-            println("Sub date range is: ", Date(d), " to ", Date(d+dDay-Dates.Day(1)))
-            for di in d:Dates.Day(1):d+dDay-Dates.Day(1)
-                if ar["dateCons"] == true
-                    # Do not go outside the date range
-                    if di <= stopDate
-                        filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init=fPattern)
-                        files = [files;glob(filePattern, folder)]
-                    elseif di > stopDate
-                        println("Warning: --dateCons true so excluding: ", Date(di), )
-                        flagDateCons = true
-                    end
-                elseif ar["dateCons"] == false
-                    if di > stopDate
-                        println("Warning: --dateCons true so including: ", Date(di), )
-                    end
-                    filePattern = reduce(replace,["YYYY" => lpad(Dates.year(di),4,"0"), "MM" => lpad(Dates.month(di),2,"0"),  "DD" => lpad(Dates.day(di),2,"0")], init=fPattern)
-                    files = [files;glob(filePattern, folder)]
-                end
-            end
-            if flagDateCons == true
-                println("First and last files being used are: ")
-                println(basename(files[1]), " to ", basename(last(files)))
-            end
+        firstDate = dateChunks[chunk:chunk, :][1]
+        lastDate  = dateChunks[chunk:chunk, :][2]
+        println("Sub date range is: ", Date(firstDate), " to ", Date(lastDate))
+        for day in firstDate:Dates.Day(1):lastDate
+            filePattern = reduce(replace,["YYYY" => lpad(Dates.year(day),4,"0"), "MM" => lpad(Dates.month(day),2,"0"),  "DD" => lpad(Dates.day(day),2,"0")], init = fPattern)
+            files       = [files;glob(filePattern, folder)]
         end
         
         fileSize = Int[];
@@ -581,7 +561,7 @@ function main()
         println("")
         if maximum(mat_data_weights) > 0
             dN[cT,:,:] = mat_data_weights
-            dsTime[cT] = d - Dates.Day(modOffset)
+            dsTime[cT] = firstDate
             co = 1
             for (key, value) in dGrid
                 da = round.(mat_data[:,:,co],sigdigits=6)
@@ -598,8 +578,7 @@ function main()
             end
         else
             dN[cT,:,:] = 0
-            dsTime[cT] = d - Dates.Day(modOffset)
-
+            dsTime[cT] = firstDate
         end
         cT += 1
         fill!(mat_data,0.0)
