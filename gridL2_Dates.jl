@@ -79,6 +79,10 @@ function parse_commandline()
         "--permute"
             help     = "Permute output dataset? This reorders the dimensions to the conventional order of time,lat,lon (z,y,x). Must have nco installed in your system. (default false)"
             action   = :store_true
+        "--esaVIs"
+            help     = "Only for the ESA TROPOMI SIF product. Grids NDVI and/or NIRv. Accepts one or both arguments: NDVI, NIRv."
+            action   = :store_true
+
     end
     return parse_args(s)
 end
@@ -130,41 +134,60 @@ function getPoints!(points, vert_lat, vert_lon, n,lats_0, lons_0,lats_1, lons_1 
 end
 
 # Still need to make sure the corners are read in properly!
-function getNC_var(fin, path, DD::Bool)
+# Note: the key argument for this function is for the esa tropomi data
+# because the reflectances are not stored individually
+function getNC_var(fin, path, DD::Bool, key = nothing)
     try
         loc = split(path ,r"/")
-        #println(loc)
-        if length(loc)==1
+
+        if length(loc) == 1
             return fin[path].var[:]
-        elseif length(loc)>1
+        elseif length(loc) > 1
             gr = []
-            for i in 1:length(loc)-1
-                if i==1
+            for i in 1:length(loc) - 1
+                if i == 1
                     gr = fin.group[loc[i]]
                 else
                     gr = gr.group[loc[i]]
                 end
             end
 
-            #println(loc[end])
             si = size(gr[loc[end]])
+
             # DD means there is a 2nd index for footprint bounds of dimension 4!
             if DD
-                if si[1]==4
-                    return reshape(gr[loc[end]].var[:],4,prod(si[2:end]))'
-                elseif si[end]==4
-                    return reshape(gr[loc[end]].var[:],prod(si[1:end-1]),4)
+                if si[1] == 4
+                    return reshape(gr[loc[end]].var[:], 4, prod(si[2:end]))'
+                elseif si[end] == 4
+                    return reshape(gr[loc[end]].var[:], prod(si[1:end-1]), 4)
                 end
+
+            # Pass reflectance arrays from esa sif product
             else
-                return reshape(gr[loc[end]].var[:],prod(si))
+                if key    == "REF_665"
+                    return gr[loc[end]].var[1:1, :]
+                elseif key == "REF_680"
+                    return gr[loc[end]].var[2:2, :]
+                elseif key == "REF_712"
+                    return gr[loc[end]].var[3:3, :]
+                elseif key == "REF_741"
+                    return gr[loc[end]].var[4:4, :]
+                elseif key == "REF_755"
+                    return gr[loc[end]].var[5:5, :]
+                elseif key == "REF_773"
+                    return gr[loc[end]].var[6:6, :]
+                elseif key == "REF_781"
+                    return gr[loc[end]].var[7:7, :]
+                else
+                    return reshape(gr[loc[end]].var[:], prod(si))
+                end
             end
         end
     catch e
-        # @show e
-        # println("Error in getNC_var ", path)
+        @show e
+        println("Error in getNC_var ", path)
         return 0.0
     end
-
 end
 
 function getNC_attrib(fin, path, attri)
@@ -394,9 +417,9 @@ function main()
     n   = zeros(Float32,(length(lat),length(lon)))
     SIF = zeros(Float32,(length(lat),length(lon)))
     # Parse JSON files as dictionary
-    jsonDict = JSON.parsefile(ar["Dict"])
-    d2       = jsonDict["basic"]
-    dGrid    = jsonDict["grid"]
+    jsonDict    = JSON.parsefile(ar["Dict"])
+    dictBasic   = jsonDict["basic"]
+    dictGrid    = jsonDict["grid"]
 
     # Read all filters:
     f_eq = getFilter("filter_eq",jsonDict)
@@ -411,8 +434,8 @@ function main()
 
     NCDict = Dict{String, NCDatasets.CFVariable}()
     println("Input variables to output variables:")
-    for (key, value) in dGrid
-        println(key," : ", value)
+    for (key, value) in dictGrid
+        # println(key," : ", value)
         NCDict[key] = defVar(dsOut, key, Float32,("time", "lon", "lat"), deflatelevel = 4, fillvalue = -9999)
         if ar["compSTD"]
             key2 = key*"_std"
@@ -425,8 +448,8 @@ function main()
     dN = defVar(dsOut, "n", Float32, ("time", "lon", "lat"), deflatelevel = 4, fillvalue = -9999, units = "", long_name = "Number of pixels in average")
     
     # Define data array
-    mat_data          = zeros(Float32,(length(lon),length(lat),length(dGrid)))
-    mat_data_variance = zeros(Float32,(length(lon),length(lat),length(dGrid)))
+    mat_data          = zeros(Float32,(length(lon),length(lat),length(dictGrid)))
+    mat_data_variance = zeros(Float32,(length(lon),length(lat),length(dictGrid)))
     mat_data_weights  = zeros(Float32,(length(lon),length(lat)))
 
     # Still hard-coded here, can be changed:
@@ -457,30 +480,31 @@ function main()
             fileSize = [fileSize;stat(f).size]
         end
 
+
         # Loop through all files
         for a in files[fileSize.>0]
 
             fin = Dataset(a)
             # println("Read, ", a)
-            
+          
             # Read lat/lon bounds (required, maybe can change this to simple gridding in the future with just center):
-            lat_in_ = getNC_var(fin, d2["lat_bnd"],true)
-            lon_in_ = getNC_var(fin, d2["lon_bnd"],true)
-            
+            lat_in_ = getNC_var(fin, dictBasic["lat_bnd"], true)
+            lon_in_ = getNC_var(fin, dictBasic["lon_bnd"], true)
+          
             #println("Read")
             dim = size(lat_in_)
 
             # Transpose if orders are swapped
-            if dim[1]==4
+            if dim[1] == 4
                 lat_in_ = lat_in_'
                 lon_in_ = lon_in_'
             end
 
             # Find all indices within lat/lon bounds:
-            minLat = minimum(lat_in_, dims=2)
-            maxLat = maximum(lat_in_, dims=2)
-            minLon = minimum(lon_in_, dims=2)
-            maxLon = maximum(lon_in_, dims=2)
+            minLat = minimum(lat_in_, dims =2)
+            maxLat = maximum(lat_in_, dims = 2)
+            minLon = minimum(lon_in_, dims = 2)
+            maxLon = maximum(lon_in_, dims = 2)
 
             # Get indices within the lat/lon bounding box and check filter criteria (the last one filters out data crossing the date boundary):
             bool_add = (minLat[:,1].>latMin) .+ (maxLat[:,1].<latMax) .+ (minLon[:,1].>lonMin) .+ (maxLon[:,1].<lonMax) .+ ((maxLon[:,1].-minLon[:,1]).<50)
@@ -489,27 +513,27 @@ function main()
             # Look for equalities
             for (key, value) in f_eq
                 #println(key, " ", value)
-                bool_add += (getNC_var(fin, key,false).==value)
-                bCounter+=1
+                bool_add += (getNC_var(fin, key, false) .== value)
+                bCounter += 1
             end
             # Look for >
             for (key, value) in f_gt
-                bool_add += (getNC_var(fin, key,false).>value)
-                bCounter+=1
+                bool_add += (getNC_var(fin, key, false) .> value)
+                bCounter += 1
             end
             # Look for <
             for (key, value) in f_lt
-                bool_add += (getNC_var(fin, key,false).<value)
-                bCounter+=1
+                bool_add += (getNC_var(fin, key, false) .< value)
+                bCounter += 1
             end
 
             # If all were true, bool_add would be bCounter!
-            idx = findall(bool_add.==bCounter)
+            idx = findall(bool_add .== bCounter)
 
             # Read data only for non-empty indices
             if length(idx) > 0
-                #print(size(lat_in_))
-                mat_in =  zeros(Float32,(length(lat_in_[:,1]),length(dGrid)))
+                #println(size(lat_in_))
+                mat_in =  zeros(Float32, (length(lat_in_[:, 1]), length(dictGrid)))
                 dim = size(mat_in)
                 
                 # Read in all entries defined in JSON file:
@@ -517,8 +541,8 @@ function main()
                 
                 # Do this only once:
                 if fillAttrib
-                    for (key, value) in dGrid
-			# Need to change this soon to just go over keys(attrib), not this hard-coded thing. Just want to avoid another fill_value!
+                    for (key, value) in dictGrid
+			            # Need to change this soon to just go over keys(attrib), not this hard-coded thing. Just want to avoid another fill_value!
                         attribs = ["units","long_name","valid_range","description","unit","longname"]
                         for at in attribs
                             try
@@ -529,20 +553,19 @@ function main()
                             end
                         end
                     end
-                    fillAttrib=false
+                    fillAttrib = false
                 end
 
-                for (key, value) in dGrid
-                    #println(key, value)
-                    mat_in[:,co]=getNC_var(fin, value,false)
+                for (key, value) in dictGrid
+                    mat_in[:,co] = getNC_var(fin, value, false, key)
                     co += 1
                 end
 
                 iLat_ = ((lat_in_[idx,:].-latMin)/(latMax-latMin)*length(lat)).+1
                 iLon_ = ((lon_in_[idx,:].-lonMin)/(lonMax-lonMin)*length(lon)).+1
 
-                # @time  favg_all!(mat_data, mat_data_variance, mat_data_weights, ar["compSTD"], iLat_,iLon_,mat_in[idx,:],length(idx),dim[2],nGrid, latMin, latMax, lonMin,lonMax, length(lat), length(lon), points )
-                favg_all!(mat_data, mat_data_variance, mat_data_weights, ar["compSTD"], iLat_,iLon_,mat_in[idx,:],length(idx),dim[2],nGrid, latMin, latMax, lonMin,lonMax, length(lat), length(lon), points )
+                # @time  favg_all!(mat_data, mat_data_variance, mat_data_weights, ar["compSTD"], iLat_, iLon_, mat_in[idx,:], length(idx), dim[2], nGrid, latMin, latMax, lonMin,lonMax, length(lat), length(lon), points)
+                favg_all!(mat_data, mat_data_variance, mat_data_weights, ar["compSTD"], iLat_, iLon_, mat_in[idx,:], length(idx), dim[2], nGrid, latMin, latMax, lonMin,lonMax, length(lat), length(lon), points)
 
                 # println("Read ", a, " ", length(idx))
                 println("Read ", basename(a))
@@ -563,8 +586,8 @@ function main()
             dN[cT,:,:] = mat_data_weights
             dsTime[cT] = firstDate
             co = 1
-            for (key, value) in dGrid
-                da = round.(mat_data[:,:,co],sigdigits=6)
+            for (key, value) in dictGrid
+                da = round.(mat_data[:, :, co], sigdigits = 6)
                 da[mat_data_weights .< 1e-10] .= -9999
                 NCDict[key][cT,:,:] = da
                 if ar["compSTD"]
