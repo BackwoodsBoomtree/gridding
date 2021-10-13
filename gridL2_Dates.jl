@@ -80,7 +80,7 @@ function parse_commandline()
             help     = "Permute output dataset? This reorders the dimensions to the conventional order of time,lat,lon (z,y,x). Must have nco installed in your system. (default false)"
             action   = :store_true
         "--esaVIs"
-            help     = "Only for the ESA TROPOMI SIF product. Grids NDVI and/or NIRv. Accepts one or both arguments: NDVI, NIRv."
+            help     = "Only for the ESA TROPOMI SIF product. Grids NDVI and NIRv. json file must contain keys for REF_665 and REF_781."
             action   = :store_true
 
     end
@@ -161,24 +161,14 @@ function getNC_var(fin, path, DD::Bool, key = nothing)
                 elseif si[end] == 4
                     return reshape(gr[loc[end]].var[:], prod(si[1:end-1]), 4)
                 end
-
             # Pass reflectance arrays from esa sif product
             else
-                if key    == "REF_665"
-                    return gr[loc[end]].var[1:1, :]
-                elseif key == "REF_680"
-                    return gr[loc[end]].var[2:2, :]
-                elseif key == "REF_712"
-                    return gr[loc[end]].var[3:3, :]
-                elseif key == "REF_741"
-                    return gr[loc[end]].var[4:4, :]
-                elseif key == "REF_755"
-                    return gr[loc[end]].var[5:5, :]
-                elseif key == "REF_773"
-                    return gr[loc[end]].var[6:6, :]
-                elseif key == "REF_781"
-                    return gr[loc[end]].var[7:7, :]
+                refs = ["REF_665", "REF_680", "REF_712", "REF_741", "REF_755", "REF_773", "REF_781"]
+                if key in refs
+                    pos = findall(x -> x == key, refs)
+                    return gr[loc[end]].var[pos[1]:pos[1], :]
                 else
+                    # Return anything else
                     return reshape(gr[loc[end]].var[:], prod(si))
                 end
             end
@@ -399,46 +389,48 @@ function main()
     println("")
     
     # Create output file:
-    dsOut = Dataset(ar["outFile"],"c")
+    dsOut = Dataset(ar["outFile"], "c")
     
-    defDim(dsOut,"time", cT)
-    defDim(dsOut,"lat",length(lat))
-    defDim(dsOut,"lon",length(lon))
-    dsTime   = defVar(dsOut,"time",Float32,("time",),attrib = ["units" => "days since 1970-01-01","long_name" => "Time (UTC), start of interval"])
-    dsLat    = defVar(dsOut,"lat",Float32,("lat",), attrib = ["units" => "degrees_north","long_name" => "Latitude"])
-    dsLon    = defVar(dsOut,"lon",Float32,("lon",), attrib = ["units" => "degrees_east","long_name" => "Longitude"])
+    defDim(dsOut, "time", cT)
+    defDim(dsOut, "lat" ,length(lat))
+    defDim(dsOut, "lon" ,length(lon))
+    dsTime   = defVar(dsOut, "time" ,Float32,("time",), attrib = ["units" => "days since 1970-01-01","long_name" => "Time (UTC), start of interval"])
+    dsLat    = defVar(dsOut, "lat" , Float32,("lat",), attrib = ["units" => "degrees_north","long_name" => "Latitude"])
+    dsLon    = defVar(dsOut, "lon" , Float32,("lon",), attrib = ["units" => "degrees_east","long_name" => "Longitude"])
     dsLat[:] = lat
     dsLon[:] = lon
 
-    # Define a global attribute
-    dsOut.attrib["title"] = "TROPOMI Gridded Data"
-
     # Define gridded variables:
-    n   = zeros(Float32,(length(lat),length(lon)))
-    SIF = zeros(Float32,(length(lat),length(lon)))
+    # n   = zeros(Float32,(length(lat),length(lon)))
+    # SIF = zeros(Float32,(length(lat),length(lon)))
+    
     # Parse JSON files as dictionary
-    jsonDict    = JSON.parsefile(ar["Dict"])
-    dictBasic   = jsonDict["basic"]
-    dictGrid    = jsonDict["grid"]
+    jsonDict  = JSON.parsefile(ar["Dict"])
+    dictBasic = jsonDict["basic"]
+    dictGrid  = jsonDict["grid"]
+    dictGlob  = jsonDict["glob_attribs"]
+
+    # add global attributes to output nc file
+    for (key, value) in dictGlob
+        dsOut.attrib[key] = value
+    end
 
     # Read all filters:
     f_eq = getFilter("filter_eq",jsonDict)
     f_gt = getFilter("filter_gt",jsonDict)
     f_lt = getFilter("filter_lt",jsonDict)
 
-    # Get file naming pattern (needs YYYY MM and DD in there)
-    fPattern = jsonDict["filePattern"]
-    
-    # Get main folder for files:
-    folder   = jsonDict["folder"]
+    # Get file naming pattern (needs YYYY, MM, DD) and folder for input files
+    fPattern = dictBasic["filePattern"]
+    folder   = dictBasic["folder"]
 
     NCDict = Dict{String, NCDatasets.CFVariable}()
     println("Input variables to output variables:")
     for (key, value) in dictGrid
-        # println(key," : ", value)
+        println(key," : ", value)
         NCDict[key] = defVar(dsOut, key, Float32,("time", "lon", "lat"), deflatelevel = 4, fillvalue = -9999)
         if ar["compSTD"]
-            key2 = key*"_std"
+            key2         = key * "_std"
             NCDict[key2] = defVar(dsOut, key2, Float32, ("time", "lon", "lat"), deflatelevel = 4, fillvalue = -9999, comment = "Standard Deviation from data")
         end
     end
@@ -465,6 +457,7 @@ function main()
     # Time counter
     cT = 1
 
+    # Get list of files for the sub range
     for chunk in 1:size(dateChunks, 1)
         files = String[];
         firstDate = dateChunks[chunk:chunk, :][1]
@@ -482,7 +475,7 @@ function main()
 
 
         # Loop through all files
-        for a in files[fileSize.>0]
+        for a in files[fileSize .> 0]
 
             fin = Dataset(a)
             # println("Read, ", a)
@@ -507,7 +500,7 @@ function main()
             maxLon = maximum(lon_in_, dims = 2)
 
             # Get indices within the lat/lon bounding box and check filter criteria (the last one filters out data crossing the date boundary):
-            bool_add = (minLat[:,1].>latMin) .+ (maxLat[:,1].<latMax) .+ (minLon[:,1].>lonMin) .+ (maxLon[:,1].<lonMax) .+ ((maxLon[:,1].-minLon[:,1]).<50)
+            bool_add = (minLat[:,1] .> latMin) .+ (maxLat[:,1] .< latMax) .+ (minLon[:, 1] .> lonMin) .+ (maxLon[:, 1] .< lonMax) .+ ((maxLon[:, 1] .- minLon[:, 1]) .< 50)
             
             bCounter = 5
             # Look for equalities
@@ -543,10 +536,15 @@ function main()
                 if fillAttrib
                     for (key, value) in dictGrid
 			            # Need to change this soon to just go over keys(attrib), not this hard-coded thing. Just want to avoid another fill_value!
-                        attribs = ["units","long_name","valid_range","description","unit","longname"]
+                        attribs = ["units", "long_name", "valid_range", "description", "unit", "longname"]
                         for at in attribs
                             try
                                 NCDict[key].attrib[at] = getNC_attrib(fin, value, at)
+                                # For esa sif product
+                                refs = ["REF_665", "REF_680", "REF_712", "REF_741", "REF_755", "REF_773", "REF_781"]
+                                if key in refs
+                                    NCDict[key].attrib["long_name"] = string("TOA Reflectance at ", last(key, 3), " nm")
+                                end
                             catch e
                                 # @show e
                                 # println(" Couldn't write attrib ", at)
@@ -578,6 +576,7 @@ function main()
     #           println("Error in file caught")
     #       end
         end
+        
         # Filter all data, set averages, still need to change row/column order here in the future!
         dims = size(mat_data)
         println("Averaging time step...")
@@ -592,7 +591,7 @@ function main()
                 NCDict[key][cT,:,:] = da
                 if ar["compSTD"]
                     da = round.(sqrt.(mat_data_variance[:,:,co] ./ mat_data_weights), sigdigits = 6)
-                    da[mat_data_weights.<1e-10] .= -9999
+                    da[mat_data_weights .< 1e-10] .= -9999
                     key2 = key * "_std"
                     NCDict[key2][cT,:,:] = da
                 end
@@ -608,6 +607,19 @@ function main()
         fill!(mat_data_weights,0.0)
         fill!(mat_data_variance,0.0)
     end
+
+    # Calculate and insert NDVI and NIRv for esa product 
+    if ar["esaVIs"]
+        NCDict["NDVI"] = defVar(dsOut, "NDVI", Float32, ("time", "lon", "lat"), deflatelevel = 4, fillvalue = -9999, attrib = ["units" => "", "long_name" => "NDVI"])
+        NCDict["NIRv"] = defVar(dsOut, "NIRv", Float32, ("time", "lon", "lat"), deflatelevel = 4, fillvalue = -9999, attrib = ["units" => "", "long_name" => "NIRv"])
+        for t in 1:cT - 1
+            NCDict["NDVI"][t, :, :] = (NCDict["REF_781"][t, :, :] .- NCDict["REF_665"][t, :, :]) ./ (NCDict["REF_781"][t, :, :] .+ NCDict["REF_665"][t, :, :])
+            NCDict["NIRv"][t, :, :] = (NCDict["REF_781"][t, :, :] .- NCDict["REF_665"][t, :, :]) ./ (NCDict["REF_781"][t, :, :] .+ NCDict["REF_665"][t, :, :]) .* NCDict["REF_781"][t, :, :]
+        end
+        println("VIs have been calculated for ESA TROPOMI SIF product.")
+    end
+
+
     close(dsOut)
 
     # Permute?
