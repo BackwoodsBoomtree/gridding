@@ -475,7 +475,7 @@ function main()
         for day in firstDate:Dates.Day(1):lastDate
             filePattern = reduce(replace,["YYYY" => lpad(Dates.year(day),4,"0"), "MM" => lpad(Dates.month(day),2,"0"),  "DD" => lpad(Dates.day(day),2,"0")], init = fPattern)
             file  = filter(s -> occursin(filePattern, s), fileList)
-            files = [files;file[1]]
+            files = [files;file]
         end
         
         fileSize = Int[];
