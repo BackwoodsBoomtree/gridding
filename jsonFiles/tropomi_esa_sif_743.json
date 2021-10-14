@@ -7,8 +7,8 @@
     	"sza"      : "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/solar_zenith_angle",
     	"vza"      : "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/viewing_zenith_angle",
     	"time"     : "PRODUCT/time",
-		"filePattern" : "TROPOSIF_L2B_YYYY-MM-DD*.nc",
-		"folder"      : "/mnt/g/TROPOMI/esa/sif/v2.1/l2b/2018/05"
+		"filePattern" : "TROPOSIF_L2B_YYYY-MM-DD",
+		"folder"      : "/mnt/g/TROPOMI/esa/sif/v2.1/l2b"
 },
 	"grid":{
 		"SIF_743"      : "PRODUCT/SIF_743",

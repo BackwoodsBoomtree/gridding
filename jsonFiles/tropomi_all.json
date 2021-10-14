@@ -8,7 +8,7 @@
     	"vza"    : "vza",
     	"phaseAngle" : "phase_angle",
     	"time"       : "TIME",
-		"filePattern": "TROPO_SIF_YYYY-MM-DD_*.nc",
+		"filePattern": "TROPO_SIF_YYYY-MM-DD",
 		"folder"     : "/mnt/g/TROPOMI/caltech/original"
 },
 	"grid":{

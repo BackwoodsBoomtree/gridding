@@ -458,6 +458,14 @@ function main()
     # Time counter
     cT = 1
 
+    # Get list of all files in all subdirs
+    fileList = [];
+    for (root, dirs, files) in walkdir(folder)
+        for file in files
+            push!(fileList, joinpath(root, file)) # path to files
+        end
+    end
+
     # Get list of files for the sub range
     for chunk in 1:size(dateChunks, 1)
         files = String[];
@@ -466,7 +474,8 @@ function main()
         println("Sub date range is: ", Date(firstDate), " to ", Date(lastDate))
         for day in firstDate:Dates.Day(1):lastDate
             filePattern = reduce(replace,["YYYY" => lpad(Dates.year(day),4,"0"), "MM" => lpad(Dates.month(day),2,"0"),  "DD" => lpad(Dates.day(day),2,"0")], init = fPattern)
-            files       = [files;glob(filePattern, folder)]
+            file  = filter(s -> occursin(filePattern, s), fileList)
+            files = [files;file[1]]
         end
         
         fileSize = Int[];
