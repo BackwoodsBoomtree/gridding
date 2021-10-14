@@ -26,6 +26,8 @@
         "REF_781" : "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/TOA_RFL",
 	    "cloud_fraction_L2" : "PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2"
 },
+	"filters":{
+},
 	"glob_attribs":{
 		"title"       : "TROPOMI SIF and Reflectances as Derived from ESA L2B Product",
 		"institution" : "University of Oklahoma, College of Atmospheric and Geographic Sciences",
