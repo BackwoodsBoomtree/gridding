@@ -409,6 +409,7 @@ function main()
     dictBasic = jsonDict["basic"]
     dictGrid  = jsonDict["grid"]
     dictGlob  = jsonDict["glob_attribs"]
+    dictFilt  = jsonDict["filters"]
 
     # add global attributes to output nc file
     for (key, value) in dictGlob
@@ -416,9 +417,9 @@ function main()
     end
 
     # Read all filters:
-    f_eq = getFilter("filter_eq",jsonDict)
-    f_gt = getFilter("filter_gt",jsonDict)
-    f_lt = getFilter("filter_lt",jsonDict)
+    f_eq = getFilter("filter_eq", dictFilt)
+    f_gt = getFilter("filter_gt", dictFilt)
+    f_lt = getFilter("filter_lt", dictFilt)
 
     # Get file naming pattern (needs YYYY, MM, DD) and folder for input files
     fPattern = dictBasic["filePattern"]

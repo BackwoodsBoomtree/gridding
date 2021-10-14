@@ -1,0 +1,27 @@
+{
+	"basic":{
+		"lat"      : "PRODUCT/latitude",
+    	"lon"      : "PRODUCT/longitude",
+    	"lat_bnd"  : "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/latitude_bounds",
+    	"lon_bnd"  : "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/longitude_bounds",
+    	"sza"      : "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/solar_zenith_angle",
+    	"vza"      : "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/viewing_zenith_angle",
+    	"time"     : "PRODUCT/time",
+		"filePattern" : "TROPOSIF_L2B_YYYY-MM-DD*.nc",
+		"folder"      : "/mnt/g/TROPOMI/esa/sif/v2.1/l2b/2018/05"
+},
+	"grid":{
+		"SIF_743"      : "PRODUCT/SIF_743",
+	    "SIF_Corr_743" : "PRODUCT/SIF_Corr_743",
+	    "SIF_ERROR_743": "PRODUCT/SIF_ERROR_743",
+	    "cloud_fraction_L2" : "PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2"
+},
+	"glob_attribs":{
+		"title"       : "TROPOMI SIF and Reflectances as Derived from ESA L2B Product",
+		"institution" : "University of Oklahoma, College of Atmospheric and Geographic Sciences",
+		"author"      : "Russell Doughty, PhD",
+		"source"      : "This gridded data was generated from the ESA TROPOMI L2B SIF product available at https://s5p-troposif.noveltis.fr/data-access/.",
+		"references"  : "Guanter, L., Bacour, C., Schneider, A., Aben, I., van Kempen, T.A., Maignan, F., Retscher, C., Köhler, P., Frankenberg, C., Joiner, J. and Zhang, Y., 2021. The TROPOSIF global sun-induced fluorescence dataset from the Sentinel-5P TROPOMI mission. Earth System Science Data Discussions, pp.1-27.",
+		"comment"     : "Gridding was done with the oversampling method, originally coded by Dr. Christian Frankenberg (https://github.com/cfranken/gridding). Data was permuted using the NCO package." 
+}
+}
