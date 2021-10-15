@@ -1,5 +1,3 @@
-#!/home/cfranken//julia
-
 # Argument Parser
 using ArgParse
 using Base, Dates, Printf
