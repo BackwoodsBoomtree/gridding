@@ -143,10 +143,10 @@ An example file content is below:
 
 The structure will be used to define dictionaries in Julia, with a key (the left side, pointing to internal variables in the code) and a value (this is actually the path to the respetive dataset within the files you want to grid). What is needed for sure is the key/value pair for `lat_bnd` and `lon_bnd` as these corner coordinates in the files are used to perform proper gridding and over-sampling (I think time is not even used right now). The other part is in the `grid` group, eveything you will add here will be gridded, i.e. all variables on the left side of the key/value pairs (and saved how you call it on the left). 
 
-Last but not least, we need a `filePattern`, which defines where to look for the data (`YYYY`, `MM` and `DD` are keywords, which will be internally used to find the right matching years, months and days). Wildcards can be used (`?`, `*`, etc). Then you need to provide the main folder where the data is located (the full path is `folder/filePattern`). All files, including those in subdirectories, will be scanned using the `filePattern`.
+Last but not least, we need a `filePattern`, which defines where to look for the data (`YYYY`, `MM` and `DD` are keywords, which will be internally used to find the right matching years, months and days). Wildcards, such as `?` and `*` are not necessary as patial matches are returned automatically. Then you need to provide the main folder where the data is located (the full path is `folder/filePattern`). All files, including those in subdirectories, will be scanned using the `filePattern`.
 
 ### Filter criteria:
-You can add filter criteria as well, as we sometimes want to make sure that quality filters are applied, angles are within a specific range, and so forth. Within the json file, this can be done by adding groups called `filter_eq`, `filter_gt`, or `filter_lt` in the `filters` dictionary. These test for equalities, greater than or lower than. An example is here:
+You can add filter criteria as well, as we sometimes want to make sure that quality filters are applied, angles are within a specific range, and so forth. Within the json file, this can be done by adding groups called `filter_eq`, `filter_gt`, or `filter_lt` in the `filters` dictionary. These test for equalities, greater than, or lower than. Here is an example:
 ```
   "filters":{
       "filter_lt" : {
@@ -157,7 +157,7 @@ You can add filter criteria as well, as we sometimes want to make sure that qual
         }
     }
 ```
-here, we want to make sure that the `cloud_fraction` is less than than 0.20 and that the SIF values are within a reasonable range (be careful doing things like this, just added for demonstration).
+Here, we want to make sure that the `cloud_fraction` is less than than 0.20 and that the SIF values are within a reasonable range (be careful doing things like this, just added for demonstration).
 
 ## Code of Conduct:
 Please feel free to use this tool but make sure that you help the community if you find bugs, improve it etc. Any modifications that are useful should be made publicly available, you can fork and create a pull request. Also, let us know if you find bugs. On top of that, please acknowledge the tool if you use it in publications.
