@@ -22,11 +22,13 @@
 	    "cloud_fraction_L2" : "PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2"
 },
     "filters":{
-        "filter_lt" : {
-			"PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2": 0.2,
+        "filter_lt":{
             "PRODUCT/SIF_735" : 5.0,
             "PRODUCT/SIF_Corr_735" : 3.0,
             "PRODUCT/SIF_ERROR_735" : 0.3
+		},
+		"filter_eq":{
+			"PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2": 0
 		}
 },
 	"glob_attribs":{
@@ -36,6 +38,6 @@
 		"source"      : "This gridded data was generated from the ESA TROPOMI L2B SIF product available at https://s5p-troposif.noveltis.fr/data-access/.",
 		"references"  : "Guanter, L., Bacour, C., Schneider, A., Aben, I., van Kempen, T.A., Maignan, F., Retscher, C., Köhler, P., Frankenberg, C., Joiner, J. and Zhang, Y., 2021. The TROPOSIF global sun-induced fluorescence dataset from the Sentinel-5P TROPOMI mission. Earth System Science Data Discussions, pp.1-27.",
 		"comment"     : "Gridding was done with the oversampling method, originally coded by Dr. Christian Frankenberg (https://github.com/cfranken/gridding). Data was permuted using the NCO package.",
-        "filters"     : "Input soundings were filtered for cloud fracton < 0.2; SIF_735 < 5.0; SIF_Corr_735 < 3.0; and SIF_ERROR_735 < 0.3."
+        "filters"     : "Input soundings were filtered for cloud fracton = 0; SIF_735 < 5.0; SIF_Corr_735 < 3.0; and SIF_ERROR_735 < 0.3."
 }
 }
