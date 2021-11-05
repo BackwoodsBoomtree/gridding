@@ -618,11 +618,13 @@ function main()
 
     # Calculate and insert NDVI and NIRv for esa product 
     if ar["esaVIs"]
-        NCDict["NDVI"] = defVar(dsOut, "NDVI", Float32, ("time", "lon", "lat"), deflatelevel = 4, fillvalue = -9999, attrib = ["units" => "", "long_name" => "NDVI"])
-        NCDict["NIRv"] = defVar(dsOut, "NIRv", Float32, ("time", "lon", "lat"), deflatelevel = 4, fillvalue = -9999, attrib = ["units" => "", "long_name" => "NIRv"])
+        NCDict["NDVI"]     = defVar(dsOut, "NDVI", Float32, ("time", "lon", "lat"), deflatelevel = 4, fillvalue = -9999, attrib = ["units" => "", "long_name" => "NDVI"])
+        NCDict["NIRv_REF"] = defVar(dsOut, "NIRv_REF", Float32, ("time", "lon", "lat"), deflatelevel = 4, fillvalue = -9999, attrib = ["units" => "", "long_name" => "NIRv (Reflectance)"])
+        NCDict["NIRv_RAD"] = defVar(dsOut, "NIRv_RAD", Float32, ("time", "lon", "lat"), deflatelevel = 4, fillvalue = -9999, attrib = ["units" => "mW/m2/sr/nm", "long_name" => "NIRv (Radiance)"])
         for t in 1:cT - 1
-            NCDict["NDVI"][t, :, :] = (NCDict["REF_781"][t, :, :] .- NCDict["REF_665"][t, :, :]) ./ (NCDict["REF_781"][t, :, :] .+ NCDict["REF_665"][t, :, :])
-            NCDict["NIRv"][t, :, :] = (NCDict["REF_781"][t, :, :] .- NCDict["REF_665"][t, :, :]) ./ (NCDict["REF_781"][t, :, :] .+ NCDict["REF_665"][t, :, :]) .* NCDict["REF_781"][t, :, :]
+            NCDict["NDVI"][t, :, :]     = (NCDict["REF_781"][t, :, :] .- NCDict["REF_665"][t, :, :]) ./ (NCDict["REF_781"][t, :, :] .+ NCDict["REF_665"][t, :, :])
+            NCDict["NIRv_REF"][t, :, :] = (NCDict["REF_781"][t, :, :] .- NCDict["REF_665"][t, :, :]) ./ (NCDict["REF_781"][t, :, :] .+ NCDict["REF_665"][t, :, :]) .* NCDict["REF_781"][t, :, :]
+            NCDict["NIRv_RAD"][t, :, :] = (NCDict["REF_781"][t, :, :] .- NCDict["REF_665"][t, :, :]) ./ (NCDict["REF_781"][t, :, :] .+ NCDict["REF_665"][t, :, :]) .* NCDict["Mean_TOA_RAD_743"][t, :, :]
         end
         println("VIs have been calculated for ESA TROPOMI SIF product.")
     end
