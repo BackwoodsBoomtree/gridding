@@ -11,14 +11,15 @@
 		"folder"      : "/mnt/g/TROPOMI/esa/sif/v2.1/l2b"
 },
 	"grid":{
-		"SIF_735"      : "PRODUCT/SIF_735",
-		"SIF_743"      : "PRODUCT/SIF_743",
-	    "SIF_Corr_735" : "PRODUCT/SIF_Corr_735",
-	    "SIF_Corr_743" : "PRODUCT/SIF_Corr_743",
-	    "SIF_ERROR_735": "PRODUCT/SIF_ERROR_735",
-	    "SIF_ERROR_743": "PRODUCT/SIF_ERROR_743",
-        "REF_665"      : "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/TOA_RFL",
-        "REF_781"      : "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/TOA_RFL",
+		"SIF_735"           : "PRODUCT/SIF_735",
+		"SIF_743"           : "PRODUCT/SIF_743",
+	    "SIF_Corr_735"      : "PRODUCT/SIF_Corr_735",
+	    "SIF_Corr_743"      : "PRODUCT/SIF_Corr_743",
+	    "SIF_ERROR_735"     : "PRODUCT/SIF_ERROR_735",
+	    "SIF_ERROR_743"     : "PRODUCT/SIF_ERROR_743",
+        "REF_665"           : "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/TOA_RFL",
+        "REF_781"           : "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/TOA_RFL",
+		"Mean_TOA_RAD_743"  : "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/Mean_TOA_RAD_743",
 	    "cloud_fraction_L2" : "PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2"
 },
     "filters":{
