@@ -196,14 +196,24 @@ function getNC_attrib(fin, path, attri)
     end
 end
 
-function datesBy(startDate, endDate, byDays)
+function datesBy(startDate, endDate, byDays, monthly)
     startDate = DateTime(startDate)
     endDate   = DateTime(endDate)
-    byDays    = Dates.Day(byDays)
-    # Start dates for the year
-    firstList = collect(startDate:byDays:endDate)
-    # Last date for each range
-    lastList  = firstList + byDays - Dates.Day(1)
+
+    if monthly
+        byDays   = Dates.Month(byDays)
+        # Start dates for the year
+        firstList = collect(startDate:byDays:endDate)
+        # Last date for each range
+        lastList  = firstList + byDays - Dates.Day(1)
+    else
+        byDays    = Dates.Day(byDays)
+        # Start dates for the year
+        firstList = collect(startDate:byDays:endDate)
+        # Last date for each range
+        lastList  = firstList + byDays - Dates.Day(1)
+    end
+
     dateList  = hcat(firstList, lastList)
     return(dateList)
 end
@@ -356,7 +366,7 @@ function main()
             println("Temporal resolution is modis-like. Number of time steps is: ", cT)
         end
     else
-        dateChunks = datesBy(startDate, stopDate, byDay)
+        dateChunks = datesBy(startDate, stopDate, byDay, ar["monthly"])
         cT         = size(dateChunks, 1)
         println("Temporal resolution is not modis-like. Number of time steps is: ", cT)
     end
