@@ -14,11 +14,12 @@
 		"SIF_743"           : "PRODUCT/SIF_743",
 	    "SIF_Corr_743"      : "PRODUCT/SIF_Corr_743",
 	    "SIF_ERROR_743"     : "PRODUCT/SIF_ERROR_743",
-		"REF_665"           : "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/TOA_RFL",
-        "REF_781"           : "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/TOA_RFL",
 	    "cloud_fraction_L2" : "PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2"
 },
-    "filters":{
+"filters":{
+	"filter_lt" : {
+		"PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2": 0.8
+	}
 },
 	"glob_attribs":{
 		"title"       : "TROPOMI SIF and Reflectances as Derived from ESA L2B Product",
