@@ -22,6 +22,7 @@
     "filters":{
         "filter_lt" : {
             "PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2": 0.21
+        }
 },
 	"glob_attribs":{
 		"title"       : "TROPOMI SIF and Reflectances as Derived from ESA L2B Product",
