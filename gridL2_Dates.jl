@@ -376,7 +376,7 @@ function main()
         println("Warning: --dateCons true. If date range is not divisible by --byDays, then excluding data beyond the --stopDate.")
         println("")
     else
-        println("Warning: --dateCons false. If date range is not divisible by --byDays, then including data beyond the --stopDate.")
+        println("Warning: --dateCons false. If date range is not divisible by --byDays and data is --modLike, then including data beyond the --stopDate.")
         println("")
     end
 
