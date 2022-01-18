@@ -18,7 +18,7 @@
 },
 "filters":{
 	"filter_lt" : {
-		"PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2": 0.81
+		"PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2": 0.60
 	}
 },
 	"glob_attribs":{
