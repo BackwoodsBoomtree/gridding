@@ -77,9 +77,9 @@ function parse_commandline()
         "--permute"
             help     = "Permute output dataset? This reorders the dimensions to the conventional order of time,lat,lon (z,y,x). Must have nco installed in your system. (default false)"
             action   = :store_true
-        "--esaVIs"
-            help     = "Only for the ESA TROPOMI SIF product. Grids NDVI and NIRv. json file must contain keys for REF_665 and REF_781."
-            action   = :store_true
+        # "--esaVIs"
+        #     help     = "Only for the ESA TROPOMI SIF product. Grids NDVI and NIRv. json file must contain keys for REF_665 and REF_781."
+        #     action   = :store_true
 
     end
     return parse_args(s)
@@ -626,18 +626,18 @@ function main()
         fill!(mat_data_variance,0.0)
     end
 
-    # Calculate and insert NDVI and NIRv for esa product 
-    if ar["esaVIs"]
-        NCDict["NDVI"]     = defVar(dsOut, "NDVI", Float32, ("time", "lon", "lat"), deflatelevel = 4, fillvalue = -9999, attrib = ["units" => "Reflectance", "long_name" => "NDVI"])
-        NCDict["NIRv"]     = defVar(dsOut, "NIRv", Float32, ("time", "lon", "lat"), deflatelevel = 4, fillvalue = -9999, attrib = ["units" => "Reflectance", "long_name" => "NIRv"])
-        NCDict["NIRv_RAD"] = defVar(dsOut, "NIRv_RAD", Float32, ("time", "lon", "lat"), deflatelevel = 4, fillvalue = -9999, attrib = ["units" => "mW/m2/sr/nm", "long_name" => "NIRv (NDVI * Mean_TOA_RAD_743)"])
-        for t in 1:cT - 1
-            NCDict["NDVI"][t, :, :]     = (NCDict["REF_781"][t, :, :] .- NCDict["REF_665"][t, :, :]) ./ (NCDict["REF_781"][t, :, :] .+ NCDict["REF_665"][t, :, :])
-            NCDict["NIRv"][t, :, :]     = (NCDict["REF_781"][t, :, :] .- NCDict["REF_665"][t, :, :]) ./ (NCDict["REF_781"][t, :, :] .+ NCDict["REF_665"][t, :, :]) .* NCDict["REF_781"][t, :, :]
-            NCDict["NIRv_RAD"][t, :, :] = (NCDict["REF_781"][t, :, :] .- NCDict["REF_665"][t, :, :]) ./ (NCDict["REF_781"][t, :, :] .+ NCDict["REF_665"][t, :, :]) .* NCDict["Mean_TOA_RAD_743"][t, :, :]
-        end
-        println("VIs have been calculated for ESA TROPOMI SIF product.")
-    end
+    # # Calculate and insert NDVI and NIRv for esa product 
+    # if ar["esaVIs"]
+    #     NCDict["NDVI"]     = defVar(dsOut, "NDVI", Float32, ("time", "lon", "lat"), deflatelevel = 4, fillvalue = -9999, attrib = ["units" => "Reflectance", "long_name" => "NDVI"])
+    #     NCDict["NIRv"]     = defVar(dsOut, "NIRv", Float32, ("time", "lon", "lat"), deflatelevel = 4, fillvalue = -9999, attrib = ["units" => "Reflectance", "long_name" => "NIRv"])
+    #     NCDict["NIRv_RAD"] = defVar(dsOut, "NIRv_RAD", Float32, ("time", "lon", "lat"), deflatelevel = 4, fillvalue = -9999, attrib = ["units" => "mW/m2/sr/nm", "long_name" => "NIRv (NDVI * Mean_TOA_RAD_743)"])
+    #     for t in 1:cT - 1
+    #         NCDict["NDVI"][t, :, :]     = (NCDict["REF_781"][t, :, :] .- NCDict["REF_665"][t, :, :]) ./ (NCDict["REF_781"][t, :, :] .+ NCDict["REF_665"][t, :, :])
+    #         NCDict["NIRv"][t, :, :]     = (NCDict["REF_781"][t, :, :] .- NCDict["REF_665"][t, :, :]) ./ (NCDict["REF_781"][t, :, :] .+ NCDict["REF_665"][t, :, :]) .* NCDict["REF_781"][t, :, :]
+    #         NCDict["NIRv_RAD"][t, :, :] = (NCDict["REF_781"][t, :, :] .- NCDict["REF_665"][t, :, :]) ./ (NCDict["REF_781"][t, :, :] .+ NCDict["REF_665"][t, :, :]) .* NCDict["Mean_TOA_RAD_743"][t, :, :]
+    #     end
+    #     println("VIs have been calculated for ESA TROPOMI SIF product.")
+    # end
 
 
     close(dsOut)

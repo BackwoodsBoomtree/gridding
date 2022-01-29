@@ -27,7 +27,6 @@
 		"author"      : "Russell Doughty, PhD",
 		"source"      : "This gridded data was generated from the ESA TROPOMI L2B SIF product available at https://s5p-troposif.noveltis.fr/data-access/.",
 		"references"  : "Guanter, L., Bacour, C., Schneider, A., Aben, I., van Kempen, T.A., Maignan, F., Retscher, C., Köhler, P., Frankenberg, C., Joiner, J. and Zhang, Y., 2021. The TROPOSIF global sun-induced fluorescence dataset from the Sentinel-5P TROPOMI mission. Earth System Science Data Discussions, pp.1-27.",
-		"comment"     : "Gridding was done with the oversampling method, originally coded by Dr. Christian Frankenberg (https://github.com/cfranken/gridding). Data was permuted using the NCO package.",
-		"filters"     : "Input soundings were filtered for cloud fracton <= 0.80." 
-}
+		"comment"     : "Gridding was done with the oversampling method, originally coded by Dr. Christian Frankenberg (https://github.com/cfranken/gridding). Data was permuted using the NCO package."
+	}
 }
