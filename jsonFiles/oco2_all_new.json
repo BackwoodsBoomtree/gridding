@@ -1,0 +1,33 @@
+{
+	"basic":{
+    	"lat": "Geolocation/latitude",
+    	"lon": "Geolocation/longitude",
+    	"lat_bnd": "Geolocation/footprint_latitude_vertices",
+    	"lon_bnd": "Geolocation/footprint_longitude_vertices",
+    	"time": "time",
+		"filePattern": "YYYY/MM/oco2_LtSIF_YYMMDD",
+		"folder": "/mnt/f/Caltech/Russell/Projects/Geometry/Data/oco2/"
+	},
+	"grid":{
+		"Daily_SIF_740nm": "Daily_SIF_740nm",
+		"Daily_SIF_757nm": "Daily_SIF_757nm",
+		"Daily_SIF_771nm": "Daily_SIF_771nm",
+		"SIF_740": "SIF_740nm",
+		"SIF_757": "Science/SIF_757nm",
+		"SIF_771": "Science/SIF_771nm",
+		"SIF_Uncertainty_740nm": "Science/SIF_Uncertainty_757nm",
+	    "SIF_Uncertainty_757nm": "Science/SIF_Uncertainty_757nm",
+		"SIF_Uncertainty_771nm": "Science/SIF_Uncertainty_771nm"
+	},
+	"filters":{
+	},
+	"glob_attribs":{
+		"title"       : "Derived from OCO-2 L2 Product",
+		"institution" : "University of Oklahoma, College of Atmospheric and Geographic Sciences",
+		"author"      : "Russell Doughty, PhD",
+		"source"      : "This gridded data was generated from the OCO-2 L2 data",
+		"references"  : "Doughty, R., Kurosu, T., Parazoo, N., Köhler, P., Wang, Y., Sun, Y. and Frankenberg, C., 2021. Global GOSAT, OCO-2 and OCO-3 Solar Induced Chlorophyll Fluorescence Datasets. Earth System Science Data Discussions, pp.1-28.",
+		"comment"     : "Gridding was done with the oversampling method, originally coded by Dr. Christian Frankenberg (https://github.com/cfranken/gridding). Data was permuted using the NCO package.",
+        "filters"     : "No cloud fraction filter or measurement mode filter applied."
+	}
+}

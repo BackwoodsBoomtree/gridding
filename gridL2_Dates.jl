@@ -479,18 +479,21 @@ function main()
         files = String[];
         firstDate = dateChunks[chunk:chunk, :][1]
         lastDate  = dateChunks[chunk:chunk, :][2]
+        println(firstDate)
         println("Sub date range is: ", Date(firstDate), " to ", Date(lastDate))
         for day in firstDate:Dates.Day(1):lastDate
-            filePattern = reduce(replace,["YYYY" => lpad(Dates.year(day),4,"0"), "MM" => lpad(Dates.month(day),2,"0"),  "DD" => lpad(Dates.day(day),2,"0")], init = fPattern)
+            filePattern = reduce(replace,["YYYY" => lpad(Dates.year(day),4,"0"),
+                         "YY" => chop(string(Dates.year(day)), head = 2, tail = 0),
+                         "MM" => lpad(Dates.month(day),2,"0"), 
+                         "DD" => lpad(Dates.day(day),2,"0")], init = fPattern)
             file  = filter(s -> occursin(filePattern, s), fileList)
             files = [files;file]
         end
-        
+       
         fileSize = Int[];
         for f in files
             fileSize = [fileSize;stat(f).size]
         end
-
 
         # Loop through all files
         for a in files[fileSize .> 0]
