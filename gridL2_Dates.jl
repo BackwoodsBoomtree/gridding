@@ -479,7 +479,6 @@ function main()
         files = String[];
         firstDate = dateChunks[chunk:chunk, :][1]
         lastDate  = dateChunks[chunk:chunk, :][2]
-        println(firstDate)
         println("Sub date range is: ", Date(firstDate), " to ", Date(lastDate))
         for day in firstDate:Dates.Day(1):lastDate
             filePattern = reduce(replace,["YYYY" => lpad(Dates.year(day),4,"0"),
