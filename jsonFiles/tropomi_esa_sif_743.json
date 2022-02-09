@@ -16,10 +16,10 @@
 	    "SIF_ERROR_743"     : "PRODUCT/SIF_ERROR_743",
 	    "cloud_fraction_L2" : "PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2"
 },
-"filters":{
-	"filter_lt" : {
-		"PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2": 0.60
-	}
+	"filters":{
+		"filter_lt" : {
+			"PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2": 0.80
+		}
 },
 	"glob_attribs":{
 		"title"       : "TROPOMI SIF and Reflectances as Derived from ESA L2B Product",
