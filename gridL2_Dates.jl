@@ -77,7 +77,8 @@ function parse_commandline()
         "--permute"
             help     = "Permute output dataset? This reorders the dimensions to the conventional order of time,lat,lon (z,y,x). Must have nco installed in your system. (default false)"
             action   = :store_true
-        # "--esaVIs"
+        ### NO LONGER USED AS VIS ARE ADDED AT THE SOUNDING LEVEL USING ANOTHER SCRIPT
+            # "--esaVIs"
         #     help     = "Only for the ESA TROPOMI SIF product. Grids NDVI and NIRv. json file must contain keys for REF_665 and REF_781."
         #     action   = :store_true
 
