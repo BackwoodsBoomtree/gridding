@@ -12,10 +12,13 @@
 },
 	"grid":{
 		"SIF_743"           : "PRODUCT/SIF_743",
-	    "SIF_Corr_743"      : "PRODUCT/SIF_Corr_743",
-	    "SIF_ERROR_743"     : "PRODUCT/SIF_ERROR_743",
-	    "cloud_fraction_L2" : "PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2"
-},
+		"SIF_Corr_743"      : "PRODUCT/SIF_Corr_743",
+		"SIF_ERROR_743"     : "PRODUCT/SIF_ERROR_743",
+		"cloud_fraction_L2" : "PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2",
+		"LC_PERC_2020"      : "PRODUCT/LC_PERC_2020",
+		"LC_MASK_2020"      : "PRODUCT/LC_MASK_2020",
+		"phase_angle"       : "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/phase_angle"
+	},
 	"filters":{
 		"filter_lt" : {
 			"PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2": 0.81
