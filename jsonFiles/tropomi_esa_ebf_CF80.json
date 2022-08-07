@@ -14,16 +14,10 @@
 		"SIF_743"           : "PRODUCT/SIF_743",
 	    "SIF_Corr_743"      : "PRODUCT/SIF_Corr_743",
 	    "SIF_ERROR_743"     : "PRODUCT/SIF_ERROR_743",
-		"SIF_Rel"           : "PRODUCT/SIF_Rel",
-		"SIF_NIRv_RAD"      : "PRODUCT/SIF_NIRv_RAD",
-		"NDVI"              : "PRODUCT/NDVI",
-	    "NIRv"              : "PRODUCT/NIRv",
-		"NIRv_RAD"          : "PRODUCT/NIRv_RAD",
-		"REF_665"           : "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/TOA_RFL",
-        "REF_781"           : "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/TOA_RFL",
-		"Mean_TOA_RAD_743"  : "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/Mean_TOA_RAD_743",
 	    "cloud_fraction_L2" : "PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2",
-		"LC_PERC_2020"      : "PRODUCT/LC_PERC_2020"
+		"LC_PERC_2020"      : "PRODUCT/LC_PERC_2020",
+		"LC_MASK_2020"      : "PRODUCT/LC_MASK_2020",
+		"phase_angle"       : "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/phase_angle"
 },
 "filters":{
 	"filter_lt" : {
@@ -33,7 +27,7 @@
 		"PRODUCT/LC_MASK_2020" : 2
 	},
 	"filter_gt" : {
-		"PRODUCT/LC_PERC_2020" : 0.89
+		"PRODUCT/LC_PERC_2020" : 89
 	}
 },
 	"glob_attribs":{

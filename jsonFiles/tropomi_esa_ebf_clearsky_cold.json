@@ -27,14 +27,15 @@
 		"LC_MASK_2020"      : "PRODUCT/LC_MASK_2020",
 		"phase_angle"       : "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/phase_angle"
 },
-"filters":{
-	"filter_gt" : {
-		"PRODUCT/LC_PERC_2020"                              : 89
-	},
-	"filter_eq" : {
-		"PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2" : 0,
-		"PRODUCT/LC_MASK_2020" : 2
-	}
+	"filters":{
+		"filter_gt":{
+			"PRODUCT/LC_PERC_2020"                              : 89,
+			"PRODUCT/SUPPORT_DATA/GEOLOCATIONS/phase_angle"     : 20
+		},
+		"filter_eq":{
+			"PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2" : 0,
+			"PRODUCT/LC_MASK_2020" : 2
+		}
 },
 	"glob_attribs":{
 		"title"       : "TROPOMI SIF and Reflectances as Derived from ESA L2B Product",
