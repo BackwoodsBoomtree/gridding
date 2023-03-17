@@ -21,6 +21,9 @@
 		"filter_lt" : {
 			"PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_L2": 0.81,
 			"PRODUCT/LC_MASK_2020" : 15
+		},
+		"filter_gt" : {
+			"PRODUCT/SUPPORT_DATA/GEOLOCATIONS/phase_angle": 20
 		}
 },
 	"glob_attribs":{
